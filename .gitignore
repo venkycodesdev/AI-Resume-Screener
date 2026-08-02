@@ -1,0 +1,51 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Uploaded resume files
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables and secrets
+.env
+.env.*
+*.env
+
+# VS Code settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test and coverage files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build and package files
+build/
+dist/
+*.egg-info/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
