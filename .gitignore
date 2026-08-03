@@ -1,8 +1,8 @@
-# Virtual environment
+# Virtual environments
 venv/
 .venv/
 
-# Python cache files
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,13 +16,11 @@ uploads/*
 .env.*
 *.env
 
-# VS Code settings
+# Editor folders
 .vscode/
-
-# PyCharm settings
 .idea/
 
-# Operating system files
+# Operating-system files
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -32,20 +30,18 @@ desktop.ini
 .coverage
 htmlcov/
 
-# Build and package files
+# Build files
 build/
 dist/
 *.egg-info/
 
-# Log files
+# Logs and temporary files
 *.log
-
-# Temporary files
 *.tmp
 *.temp
 ~$*
 
-# Local database files
+# Local databases
 *.db
 *.sqlite
 *.sqlite3
