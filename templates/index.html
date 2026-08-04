@@ -191,27 +191,157 @@
 
             {% if upload_success %}
 
-                <!-- Upload Success Message -->
-                <div class="upload-message success-message">
+                <!-- Professional Resume Preview Card -->
+<div class="resume-preview-card">
 
-                    <div class="message-icon">✅</div>
+    <div class="resume-preview-header">
 
-                    <h3>Resume Uploaded Successfully!</h3>
+        <div class="resume-preview-icon">
+            📄
+        </div>
 
-                    <p>
-                        Your resume has been securely received, saved and
-                        processed.
-                    </p>
+        <div class="resume-preview-title">
 
-                    <div class="uploaded-file-name">
-                        📄 {{ uploaded_filename }}
-                    </div>
+            <p class="section-tag">RESUME RECEIVED</p>
 
-                    <p class="ready-message">
-                        The resume text was extracted successfully.
-                    </p>
+            <h3>Resume Processed Successfully</h3>
 
-                </div>
+            <p>
+                Your resume was securely uploaded, analyzed and removed
+                from temporary server storage after text extraction.
+            </p>
+
+        </div>
+
+        <div class="resume-status-badge">
+            <span class="resume-status-dot"></span>
+            Ready
+        </div>
+
+    </div>
+
+
+    <div class="resume-file-card">
+
+        <div class="resume-file-main">
+
+            <div class="resume-document-icon">
+                {{ resume_info.file_type }}
+            </div>
+
+            <div class="resume-file-details">
+
+                <span class="resume-file-label">
+                    Uploaded resume
+                </span>
+
+                <h4>
+                    {{ resume_info.filename }}
+                </h4>
+
+                <p>
+                    {{ resume_info.file_type }} document ·
+                    {{ resume_info.file_size }}
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="resume-processing-status">
+            ✓ {{ resume_info.status }}
+        </div>
+
+    </div>
+
+
+    <div class="resume-preview-grid">
+
+        <div class="resume-preview-stat">
+
+            <span class="preview-stat-icon">
+                📝
+            </span>
+
+            <strong>
+                {{ resume_info.word_count }}
+            </strong>
+
+            <span>
+                Extracted Words
+            </span>
+
+        </div>
+
+
+        <div class="resume-preview-stat">
+
+            <span class="preview-stat-icon">
+                🔤
+            </span>
+
+            <strong>
+                {{ resume_info.character_count }}
+            </strong>
+
+            <span>
+                Characters
+            </span>
+
+        </div>
+
+
+        <div class="resume-preview-stat">
+
+            <span class="preview-stat-icon">
+                📋
+            </span>
+
+            <strong>
+                {{ resume_info.line_count }}
+            </strong>
+
+            <span>
+                Text Lines
+            </span>
+
+        </div>
+
+
+        <div class="resume-preview-stat">
+
+            <span class="preview-stat-icon">
+                🔒
+            </span>
+
+            <strong>
+                Deleted
+            </strong>
+
+            <span>
+                Temporary File
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <div class="resume-privacy-note">
+
+        <span class="privacy-note-icon">
+            🛡️
+        </span>
+
+        <p>
+            Your original resume file is not permanently stored.
+            Only its extracted text is used during the current analysis.
+        </p>
+
+    </div>
+
+</div>
+
 
                 <!-- Analysis Summary Dashboard -->
 <div class="analysis-dashboard">
@@ -297,67 +427,149 @@
 
 
                 <!-- Resume Match Score -->
-                <div class="score-section">
+<div
+    class="score-section
+    {% if resume_score >= 80 %}
+        score-excellent
+    {% elif resume_score >= 60 %}
+        score-good
+    {% elif resume_score >= 40 %}
+        score-average
+    {% else %}
+        score-low
+    {% endif %}"
+>
 
-                    <div class="score-heading">
+    <div class="score-heading">
 
-                        <p class="section-tag">RESUME ANALYSIS</p>
+        <p class="section-tag">ATS MATCH ANALYSIS</p>
 
-                        <h3>Resume Match Score</h3>
+        <h3>Resume Match Score</h3>
 
-                        <p>
-                            This score shows how many required job skills were
-                            found in your resume.
-                        </p>
+        <p>
+            This score shows how closely your resume skills match
+            the selected job description.
+        </p>
 
-                    </div>
-
-
-                    <div class="score-circle">
-
-                        <span class="score-number">
-                            {{ resume_score }}%
-                        </span>
-
-                    </div>
-
-
-                    <div class="score-progress">
-
-                        <div
-                            class="score-progress-fill"
-                            style="width: {{ resume_score }}%;"
-                        ></div>
-
-                    </div>
+    </div>
 
 
-                    <p class="score-message">
+    <div class="score-meter-wrapper">
 
-                        {% if resume_score >= 80 %}
+        <div
+            class="score-ring"
+            style="--score: {{ resume_score }};"
+        >
 
-                            Excellent match! Your resume closely matches this job.
+            <div class="score-ring-inner">
 
-                        {% elif resume_score >= 60 %}
+                <span class="score-number">
+                    {{ resume_score }}%
+                </span>
 
-                            Good match! Add a few missing skills to improve your
-                            score.
+                <span class="score-small-label">
+                    ATS Match
+                </span>
 
-                        {% elif resume_score >= 40 %}
+            </div>
 
-                            Average match. Your resume needs more job-related
-                            skills.
+        </div>
 
-                        {% else %}
 
-                            Low match. Improve your resume before applying for
-                            this job.
+        <div class="score-status-area">
 
-                        {% endif %}
+            {% if resume_score >= 80 %}
 
-                    </p>
+                <span class="score-status-badge">
+                    Excellent Match
+                </span>
 
-                </div>
+                <h4>Your resume is strongly aligned with this job.</h4>
+
+                <p>
+                    Most important job skills were detected in your resume.
+                    Review the remaining missing skills before applying.
+                </p>
+
+            {% elif resume_score >= 60 %}
+
+                <span class="score-status-badge">
+                    Good Match
+                </span>
+
+                <h4>Your resume has good application potential.</h4>
+
+                <p>
+                    You already match many requirements. Adding a few missing
+                    skills and stronger project evidence can improve your score.
+                </p>
+
+            {% elif resume_score >= 40 %}
+
+                <span class="score-status-badge">
+                    Average Match
+                </span>
+
+                <h4>Your resume needs focused improvement.</h4>
+
+                <p>
+                    Some important requirements are present, but several
+                    job-related skills are still missing.
+                </p>
+
+            {% else %}
+
+                <span class="score-status-badge">
+                    Low Match
+                </span>
+
+                <h4>Your resume is not yet ready for this role.</h4>
+
+                <p>
+                    Focus on the priority missing skills and complete relevant
+                    projects before applying.
+                </p>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <div class="score-progress-details">
+
+        <div class="score-progress-header">
+
+            <span>Skill-match progress</span>
+
+            <strong>{{ resume_score }}/100</strong>
+
+        </div>
+
+
+        <div class="score-progress">
+
+            <div
+                class="score-progress-fill"
+                style="width: {{ resume_score }}%;"
+            ></div>
+
+        </div>
+
+
+        <div class="score-scale">
+
+            <span>Low</span>
+            <span>Average</span>
+            <span>Good</span>
+            <span>Excellent</span>
+
+        </div>
+
+    </div>
+
+</div>
 
 
                 <!-- Matching Skills -->
@@ -993,6 +1205,149 @@
 
 </div>
 
+<!-- Download Analysis Report -->
+<div class="download-report-section">
+
+    <div class="download-report-content">
+
+        <div class="download-report-icon">
+            📥
+        </div>
+
+        <div class="download-report-text">
+
+            <p class="section-tag">
+                DOWNLOAD REPORT
+            </p>
+
+            <h3>Save Your Resume Analysis</h3>
+
+            <p>
+                Download a professional PDF containing your scores,
+                matching skills, missing skills, improvement areas and
+                final recommendations.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <form
+        action="{{ url_for('download_report') }}"
+        method="POST"
+        class="download-report-form"
+    >
+
+        <input
+            type="hidden"
+            name="filename"
+            value="{{ resume_info.filename }}"
+        >
+
+        <input
+            type="hidden"
+            name="file_type"
+            value="{{ resume_info.file_type }}"
+        >
+
+        <input
+            type="hidden"
+            name="file_size"
+            value="{{ resume_info.file_size }}"
+        >
+
+        <input
+            type="hidden"
+            name="word_count"
+            value="{{ resume_info.word_count }}"
+        >
+
+        <input
+            type="hidden"
+            name="resume_score"
+            value="{{ resume_score }}"
+        >
+
+        <input
+            type="hidden"
+            name="ats_label"
+            value="{{ ats_rating.label }}"
+        >
+
+        <input
+            type="hidden"
+            name="strength_score"
+            value="{{ resume_strength.score }}"
+        >
+
+        <input
+            type="hidden"
+            name="strength_label"
+            value="{{ resume_strength.label }}"
+        >
+
+        <input
+            type="hidden"
+            name="final_title"
+            value="{{ final_recommendation.title }}"
+        >
+
+        <input
+            type="hidden"
+            name="final_message"
+            value="{{ final_recommendation.message }}"
+        >
+
+        <input
+            type="hidden"
+            name="next_action"
+            value="{{ final_recommendation.next_action }}"
+        >
+
+        <input
+            type="hidden"
+            name="matching_skills"
+            value="{{ matching_skills | tojson | forceescape }}"
+        >
+
+        <input
+            type="hidden"
+            name="missing_skills"
+            value="{{ missing_skills | tojson | forceescape }}"
+        >
+
+        <input
+            type="hidden"
+            name="strong_areas"
+            value="{{ resume_strength.strong_areas | tojson | forceescape }}"
+        >
+
+        <input
+            type="hidden"
+            name="improvement_areas"
+            value="{{ resume_strength.improvement_areas | tojson | forceescape }}"
+        >
+
+        <input
+            type="hidden"
+            name="suggestions"
+            value="{{ suggestions | tojson | forceescape }}"
+        >
+
+
+        <button
+            type="submit"
+            class="download-report-button"
+        >
+            <span>📄</span>
+            Download PDF Report
+        </button>
+
+    </form>
+
+</div>
+
 
                 <!-- Extracted Resume Text -->
                 <div class="extracted-text-section">
@@ -1124,71 +1479,136 @@
 
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-container">
+<footer class="footer">
 
-            <div class="footer-about">
+    <div class="footer-glow"></div>
 
-                <h3>AI Resume Screener</h3>
+    <div class="footer-container">
 
-                <p>
-                    A smart resume analysis platform that helps job seekers
-                    understand their skills, improve their resumes and prepare
-                    better for job opportunities.
-                </p>
+        <!-- Project Information -->
+        <div class="footer-about">
 
-            </div>
+            <a href="#home" class="footer-brand">
+                <span class="footer-brand-icon">🤖</span>
 
-
-            <div class="footer-links">
-
-                <h4>Quick Links</h4>
-
-                <a href="#home">Home</a>
-                <a href="#features">Features</a>
-                <a href="#about">About</a>
-                <a href="#upload">Upload Resume</a>
-
-            </div>
-
-
-            <div class="footer-contact">
-
-                <h4>Contact</h4>
-
-                <a href="mailto:yourname@gmail.com">
-                    Email
-                </a>
-
-                <a
-                    href="#"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    GitHub
-                </a>
-
-                <a
-                    href="#"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    LinkedIn
-                </a>
-
-            </div>
-
-        </div>
-
-
-        <div class="footer-bottom">
+                <span>AI Resume Screener</span>
+            </a>
 
             <p>
-                &copy; 2026 AI Resume Screener. All rights reserved.
+                A smart resume-analysis platform that helps students,
+                freshers and job seekers compare their resumes with job
+                descriptions, identify skill gaps and receive useful
+                improvement recommendations.
             </p>
 
+            <div class="footer-status">
+                <span class="status-dot"></span>
+                Live and ready to analyze resumes
+            </div>
+
         </div>
-    </footer>
+
+
+        <!-- Quick Navigation -->
+        <div class="footer-column footer-links">
+
+            <h4>Quick Links</h4>
+
+            <a href="#home">
+                <span class="footer-link-icon">⌂</span>
+                Home
+            </a>
+
+            <a href="#features">
+                <span class="footer-link-icon">✦</span>
+                Features
+            </a>
+
+            <a href="#about">
+                <span class="footer-link-icon">ⓘ</span>
+                About
+            </a>
+
+            <a href="#upload">
+                <span class="footer-link-icon">↑</span>
+                Upload Resume
+            </a>
+
+        </div>
+
+
+        <!-- Contact Links -->
+        <div class="footer-column footer-contact">
+
+            <h4>Connect With Me</h4>
+
+            <a
+                href="mailto:karampudivenkatesh053@gmail.com"
+                class="footer-contact-link"
+                aria-label="Send an email to Venkatesh"
+            >
+                <span class="contact-icon">📧</span>
+
+                <span class="contact-text">
+                    <strong>Email</strong>
+                    <small>Send a message</small>
+                </span>
+            </a>
+
+            <a
+                href="https://github.com/venkycodesdev"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="footer-contact-link"
+                aria-label="Open Venkatesh GitHub profile"
+            >
+                <span class="contact-icon">💻</span>
+
+                <span class="contact-text">
+                    <strong>GitHub</strong>
+                    <small>View my projects</small>
+                </span>
+
+                <span class="external-link-icon">↗</span>
+            </a>
+
+            <a
+                href="https://www.linkedin.com/in/venkatesh-karampudi-45a792389/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="footer-contact-link"
+                aria-label="Open Venkatesh LinkedIn profile"
+            >
+                <span class="contact-icon">💼</span>
+
+                <span class="contact-text">
+                    <strong>LinkedIn</strong>
+                    <small>Connect professionally</small>
+                </span>
+
+                <span class="external-link-icon">↗</span>
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <div class="footer-bottom">
+
+        <p>
+            &copy; 2026 AI Resume Screener.
+            Designed and developed by
+            <span class="developer-name">Venkatesh</span>.
+        </p>
+
+        <a href="#home" class="back-to-top">
+            Back to top ↑
+        </a>
+
+    </div>
+
+</footer>
 
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
