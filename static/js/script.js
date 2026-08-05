@@ -1,148 +1,102 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const uploadForm = document.querySelector(".upload-form");
-    const fileInput = document.querySelector("#resume");
-    const submitButton = document.querySelector(
-        ".upload-submit-button"
-    );
+    const menuToggle = document.getElementById("menuToggle");
+    const navLinks = document.getElementById("navLinks");
+    const navigationLinks = document.querySelectorAll(".nav-link");
 
-    const successMessage = document.querySelector(
-        ".upload-message.success-message"
-    );
-
-    const resultSelectors = [
-        ".analysis-dashboard",
-        ".score-section",
-        ".matching-section",
-        ".missing-section",
-        ".skill-gap-section",
-        ".ats-rating-section",
-        ".resume-strength-section",
-        ".suggestions-section",
-        ".final-recommendation-section",
-        ".extracted-text-section"
-    ];
-
-    const resultSections = document.querySelectorAll(
-        resultSelectors.join(",")
+    const sections = document.querySelectorAll(
+        "#home, #features, #about, #developer, #contact"
     );
 
 
-    /*
-     * Show the selected resume filename.
-     */
-    if (fileInput) {
-        const selectedFileInfo = document.createElement("p");
+    function closeMobileMenu() {
+        menuToggle.classList.remove("active");
+        navLinks.classList.remove("open");
+        document.body.classList.remove("menu-open");
 
-        selectedFileInfo.className = "selected-file-info";
-        selectedFileInfo.textContent = "No resume selected.";
+        menuToggle.setAttribute("aria-expanded", "false");
+        menuToggle.setAttribute(
+            "aria-label",
+            "Open navigation menu"
+        );
+    }
 
-        fileInput.insertAdjacentElement(
-            "afterend",
-            selectedFileInfo
+
+    menuToggle.addEventListener("click", () => {
+        const menuIsOpen = navLinks.classList.toggle("open");
+
+        menuToggle.classList.toggle("active", menuIsOpen);
+        document.body.classList.toggle("menu-open", menuIsOpen);
+
+        menuToggle.setAttribute(
+            "aria-expanded",
+            String(menuIsOpen)
         );
 
+        menuToggle.setAttribute(
+            "aria-label",
+            menuIsOpen
+                ? "Close navigation menu"
+                : "Open navigation menu"
+        );
+    });
 
-        fileInput.addEventListener("change", () => {
-            const selectedFile = fileInput.files[0];
 
-            if (!selectedFile) {
-                selectedFileInfo.textContent =
-                    "No resume selected.";
+    navigationLinks.forEach((link) => {
+        link.addEventListener("click", () => {
+            closeMobileMenu();
+        });
+    });
 
-                selectedFileInfo.classList.remove(
-                    "valid-file",
-                    "invalid-file"
+
+    document.addEventListener("click", (event) => {
+        const clickedInsideNavbar =
+            event.target.closest(".navbar");
+
+        if (!clickedInsideNavbar) {
+            closeMobileMenu();
+        }
+    });
+
+
+    window.addEventListener("resize", () => {
+        if (window.innerWidth > 850) {
+            closeMobileMenu();
+        }
+    });
+
+
+    const observerOptions = {
+        root: null,
+        rootMargin: "-35% 0px -55% 0px",
+        threshold: 0
+    };
+
+
+    const sectionObserver = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                navigationLinks.forEach((link) => {
+                    link.classList.remove("active");
+                });
+
+                const activeLink = document.querySelector(
+                    `.nav-link[href="#${entry.target.id}"]`
                 );
 
-                return;
-            }
-
-            const fileName = selectedFile.name;
-            const extension = fileName
-                .split(".")
-                .pop()
-                .toLowerCase();
-
-            const allowedExtensions = ["pdf", "docx"];
-
-            if (!allowedExtensions.includes(extension)) {
-                selectedFileInfo.textContent =
-                    "Invalid file. Please choose a PDF or DOCX resume.";
-
-                selectedFileInfo.classList.add("invalid-file");
-                selectedFileInfo.classList.remove("valid-file");
-
-                fileInput.value = "";
-
-                return;
-            }
-
-            selectedFileInfo.textContent =
-                `Selected resume: ${fileName}`;
-
-            selectedFileInfo.classList.add("valid-file");
-            selectedFileInfo.classList.remove("invalid-file");
-        });
-    }
-
-
-    /*
-     * Show a loading state while Flask analyzes the resume.
-     */
-    if (uploadForm && submitButton) {
-        uploadForm.addEventListener("submit", () => {
-            submitButton.disabled = true;
-            submitButton.classList.add("button-loading");
-
-            submitButton.innerHTML = `
-                <span class="loading-spinner"></span>
-                Analyzing Resume...
-            `;
-        });
-    }
-
-
-    /*
-     * Automatically move to the results after analysis.
-     */
-    if (successMessage) {
-        window.setTimeout(() => {
-            successMessage.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
+                if (activeLink) {
+                    activeLink.classList.add("active");
+                }
             });
-        }, 300);
-    }
+        },
+        observerOptions
+    );
 
 
-    /*
-     * Animate result sections when they enter the screen.
-     */
-    if ("IntersectionObserver" in window) {
-        const sectionObserver = new IntersectionObserver(
-            (entries, observer) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add(
-                            "section-visible"
-                        );
-
-                        observer.unobserve(entry.target);
-                    }
-                });
-            },
-            {
-                threshold: 0.12
-            }
-        );
-
-        resultSections.forEach((section) => {
-            section.classList.add("reveal-section");
-            sectionObserver.observe(section);
-        });
-    } else {
-        resultSections.forEach((section) => {
-            section.classList.add("section-visible");
-        });
-    }
+    sections.forEach((section) => {
+        sectionObserver.observe(section);
+    });
 });

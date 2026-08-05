@@ -19,25 +19,73 @@
 <body>
 
     <!-- Navbar -->
-    <nav class="navbar">
-        <div class="nav-container">
+<nav class="navbar">
 
-            <a href="#home" class="logo">
-                AI Resume Screener
-            </a>
+    <div class="nav-container">
 
-            <ul class="nav-links">
-                <li><a href="#home">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#about">About</a></li>
-            </ul>
+        <a href="#home" class="logo">
+            AI Resume Screener
+        </a>
 
-            <a href="#upload" class="nav-button">
-                Upload Resume
-            </a>
 
-        </div>
-    </nav>
+        <button
+            type="button"
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Open navigation menu"
+            aria-expanded="false"
+            aria-controls="navLinks"
+        >
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+        </button>
+
+
+        <ul class="nav-links" id="navLinks">
+
+            <li>
+                <a href="#home" class="nav-link active">
+                    Home
+                </a>
+            </li>
+
+            <li>
+                <a href="#features" class="nav-link">
+                    Features
+                </a>
+            </li>
+
+            <li>
+                <a href="#about" class="nav-link">
+                    About
+                </a>
+            </li>
+
+            <li>
+                <a href="#developer" class="nav-link">
+                    Developer
+                </a>
+            </li>
+
+            <li>
+                <a href="#contact" class="nav-link">
+                    Contact
+                </a>
+            </li>
+
+        </ul>
+
+
+        <a href="#upload" class="nav-button desktop-upload-button">
+            Upload Resume
+        </a>
+
+    </div>
+
+</nav>
 
 
     <!-- Hero Section -->
@@ -169,6 +217,285 @@
 
         </div>
     </section>
+
+    <!-- Developer Section -->
+
+<section id="developer" class="developer-section">
+
+    <div class="developer-container">
+
+        <div class="developer-left">
+
+            <span class="section-tag">
+                ABOUT THE DEVELOPER
+            </span>
+
+            <h2>
+                Meet the Developer
+            </h2>
+
+            <p class="developer-description">
+
+                Hello! I'm
+                <strong>Karampudi Venkatesh</strong>,
+                a B.Tech student specializing in
+                Artificial Intelligence and Machine Learning.
+
+            </p>
+
+            <p>
+
+                I enjoy building AI-powered web applications,
+                solving real-world problems with Python,
+                and continuously improving my software
+                development skills.
+
+            </p>
+
+            <p>
+
+                My goal is to become a professional AI Engineer
+                and Full Stack Developer while creating practical,
+                impactful applications.
+
+            </p>
+
+        </div>
+
+
+        <div class="developer-right">
+
+            <div class="developer-card">
+
+                <h3>Education</h3>
+
+                <p>
+                    B.Tech - Artificial Intelligence & Machine Learning
+                </p>
+
+            </div>
+
+
+            <div class="developer-card">
+
+                <h3>Programming</h3>
+
+                <p>
+                    Python • Java • HTML • CSS • JavaScript
+                </p>
+
+            </div>
+
+
+            <div class="developer-card">
+
+                <h3>Frameworks</h3>
+
+                <p>
+                    Flask • Git • GitHub • Render
+                </p>
+
+            </div>
+
+
+            <div class="developer-card">
+
+                <h3>Currently Learning</h3>
+
+                <p>
+                    Machine Learning • AWS • DSA • AI Projects
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+    <!-- Contact Section -->
+<section id="contact" class="contact-section">
+
+    <div class="contact-container">
+
+        <div class="contact-heading">
+
+            <p class="section-tag">
+                CONTACT THE DEVELOPER
+            </p>
+
+            <h2>Let’s Connect</h2>
+
+            <p>
+                Have feedback, project ideas or internship opportunities?
+                You can contact the developer using the links below.
+            </p>
+
+        </div>
+
+
+        <div class="contact-layout">
+
+            <div class="contact-profile-card">
+
+                <div class="contact-avatar">
+                    VK
+                </div>
+
+                <div class="contact-profile-content">
+
+                    <span class="contact-role">
+                        AI/ML Student & Python Developer
+                    </span>
+
+                    <h3>Karampudi Venkatesh</h3>
+
+                    <p>
+                        B.Tech Artificial Intelligence and Machine Learning
+                        student focused on Python, web development, AI projects
+                        and practical problem solving.
+                    </p>
+
+                    <div class="contact-availability">
+
+                        <span class="availability-dot"></span>
+
+                        Open to internships and project collaboration
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="contact-links-grid">
+
+                <a
+                    href="mailto:karampudivenkatesh053@gmail.com"
+                    class="contact-link-card"
+                >
+
+                    <span class="contact-card-icon">
+                        📧
+                    </span>
+
+                    <div>
+
+                        <span class="contact-card-label">
+                            Email
+                        </span>
+
+                        <strong>
+                            Send a Message
+                        </strong>
+
+                    </div>
+
+                    <span class="contact-card-arrow">
+                        →
+                    </span>
+
+                </a>
+
+
+                <a
+                    href="https://github.com/venkycodesdev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="contact-link-card"
+                >
+
+                    <span class="contact-card-icon">
+                        💻
+                    </span>
+
+                    <div>
+
+                        <span class="contact-card-label">
+                            GitHub
+                        </span>
+
+                        <strong>
+                            View My Projects
+                        </strong>
+
+                    </div>
+
+                    <span class="contact-card-arrow">
+                        ↗
+                    </span>
+
+                </a>
+
+
+                <a
+                    href="https://www.linkedin.com/in/venkatesh-karampudi-45a792389/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="contact-link-card"
+                >
+
+                    <span class="contact-card-icon">
+                        💼
+                    </span>
+
+                    <div>
+
+                        <span class="contact-card-label">
+                            LinkedIn
+                        </span>
+
+                        <strong>
+                            Connect Professionally
+                        </strong>
+
+                    </div>
+
+                    <span class="contact-card-arrow">
+                        ↗
+                    </span>
+
+                </a>
+
+
+                <a
+                    href="https://venkycodesdev.github.io/portfolio-website/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="contact-link-card"
+                >
+
+                    <span class="contact-card-icon">
+                        🌐
+                    </span>
+
+                    <div>
+
+                        <span class="contact-card-label">
+                            Portfolio
+                        </span>
+
+                        <strong>
+                            Visit My Portfolio
+                        </strong>
+
+                    </div>
+
+                    <span class="contact-card-arrow">
+                        ↗
+                    </span>
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
 
 
     <!-- Upload Section -->
@@ -1477,6 +1804,169 @@
         </div>
     </section>
 
+    <!-- Privacy and Terms Section -->
+<section class="legal-section">
+
+    <div class="legal-container">
+
+        <!-- Privacy Policy -->
+        <article id="privacy" class="legal-card">
+
+            <div class="legal-card-header">
+
+                <span class="legal-icon">
+                    🔒
+                </span>
+
+                <div>
+
+                    <p class="section-tag">
+                        DATA PRIVACY
+                    </p>
+
+                    <h2>Privacy Policy</h2>
+
+                </div>
+
+            </div>
+
+
+            <div class="legal-content">
+
+                <p>
+                    AI Resume Screener respects the privacy of users and
+                    processes uploaded resume files only for the purpose of
+                    generating the requested analysis.
+                </p>
+
+                <h3>Resume Processing</h3>
+
+                <p>
+                    Uploaded PDF and DOCX files are temporarily saved on the
+                    server so that their text can be extracted and analyzed.
+                    After text extraction is completed, the temporary file is
+                    deleted automatically.
+                </p>
+
+                <h3>Information Used During Analysis</h3>
+
+                <p>
+                    The application may temporarily process resume content,
+                    detected skills, job-description text, matching skills,
+                    missing skills and calculated scores during the current
+                    analysis request.
+                </p>
+
+                <h3>Permanent Storage</h3>
+
+                <p>
+                    The current version does not permanently store uploaded
+                    resumes, extracted resume text or analysis reports in a
+                    database.
+                </p>
+
+                <h3>Third-Party Services</h3>
+
+                <p>
+                    The website is hosted using Render. External links may
+                    direct users to GitHub, LinkedIn, email applications or
+                    other third-party websites. Those services follow their
+                    own privacy policies.
+                </p>
+
+                <h3>User Responsibility</h3>
+
+                <p>
+                    Users should avoid uploading files containing information
+                    that is unnecessary for resume analysis, including banking
+                    details, government identification numbers or passwords.
+                </p>
+
+            </div>
+
+        </article>
+
+
+        <!-- Terms of Use -->
+        <article id="terms" class="legal-card">
+
+            <div class="legal-card-header">
+
+                <span class="legal-icon">
+                    📜
+                </span>
+
+                <div>
+
+                    <p class="section-tag">
+                        WEBSITE TERMS
+                    </p>
+
+                    <h2>Terms of Use</h2>
+
+                </div>
+
+            </div>
+
+
+            <div class="legal-content">
+
+                <p>
+                    By using AI Resume Screener, users agree to use the
+                    application responsibly and only for lawful resume-analysis
+                    and career-development purposes.
+                </p>
+
+                <h3>Analysis Results</h3>
+
+                <p>
+                    Resume scores, ATS ratings, skill matches and suggestions
+                    are generated using custom keyword-based analysis. They are
+                    educational guidance and should not be treated as an
+                    official result from an employer or commercial Applicant
+                    Tracking System.
+                </p>
+
+                <h3>No Hiring Guarantee</h3>
+
+                <p>
+                    The application does not guarantee job selection, interview
+                    invitations, recruiter responses or success in any hiring
+                    process.
+                </p>
+
+                <h3>File Accuracy</h3>
+
+                <p>
+                    Text extraction may be incomplete for scanned, damaged,
+                    protected or unusually formatted resume files. Users should
+                    review all generated results before making decisions.
+                </p>
+
+                <h3>Acceptable Use</h3>
+
+                <p>
+                    Users must not upload malicious files, attempt to disrupt
+                    the service, misuse the application or access areas of the
+                    system without permission.
+                </p>
+
+                <h3>Project Status</h3>
+
+                <p>
+                    This application is an educational and portfolio project.
+                    Features, scoring methods and availability may change as
+                    the project continues to improve.
+                </p>
+
+            </div>
+
+        </article>
+
+    </div>
+
+</section>
+
 
     <!-- Footer -->
 <footer class="footer">
@@ -1510,31 +2000,41 @@
 
 
         <!-- Quick Navigation -->
-        <div class="footer-column footer-links">
+<div class="footer-column footer-links">
 
-            <h4>Quick Links</h4>
+    <h4>Quick Links</h4>
 
-            <a href="#home">
-                <span class="footer-link-icon">⌂</span>
-                Home
-            </a>
+    <a href="#home">
+        <span class="footer-link-icon">⌂</span>
+        Home
+    </a>
 
-            <a href="#features">
-                <span class="footer-link-icon">✦</span>
-                Features
-            </a>
+    <a href="#features">
+        <span class="footer-link-icon">✦</span>
+        Features
+    </a>
 
-            <a href="#about">
-                <span class="footer-link-icon">ⓘ</span>
-                About
-            </a>
+    <a href="#about">
+        <span class="footer-link-icon">ⓘ</span>
+        About
+    </a>
 
-            <a href="#upload">
-                <span class="footer-link-icon">↑</span>
-                Upload Resume
-            </a>
+    <a href="#upload">
+        <span class="footer-link-icon">↑</span>
+        Upload Resume
+    </a>
 
-        </div>
+    <a href="#privacy">
+        <span class="footer-link-icon">🔒</span>
+        Privacy Policy
+    </a>
+
+    <a href="#terms">
+        <span class="footer-link-icon">📜</span>
+        Terms of Use
+    </a>
+
+</div>
 
 
         <!-- Contact Links -->
