@@ -71,6 +71,12 @@
             </li>
 
             <li>
+    <a href="{{ url_for('dashboard') }}" class="nav-link">
+        Dashboard
+    </a>
+</li>
+
+            <li>
                 <a href="#contact" class="nav-link">
                     Contact
                 </a>
@@ -79,9 +85,20 @@
         </ul>
 
 
-        <a href="#upload" class="nav-button desktop-upload-button">
-            Upload Resume
-        </a>
+        <div class="nav-auth-actions">
+
+    <span class="nav-user-name">
+        👤 {{ current_user.name }}
+    </span>
+
+    <a
+        href="{{ url_for('logout') }}"
+        class="nav-login-button"
+    >
+        Logout
+    </a>
+
+</div>
 
     </div>
 

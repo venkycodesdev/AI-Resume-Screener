@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Multiple Resume Screening | AI Resume Screener</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+</head>
+
+<body class="multi-resume-page">
+
+    <div class="multi-resume-shell">
+
+        <!-- Top Bar -->
+        <header class="multi-resume-topbar">
+
+            <a
+                href="{{ url_for('home') }}"
+                class="multi-resume-brand"
+            >
+                🤖 AI Resume Screener
+            </a>
+
+            <div class="multi-resume-user-area">
+
+                <a
+                    href="{{ url_for('dashboard') }}"
+                    class="multi-resume-nav-link"
+                >
+                    Dashboard
+                </a>
+
+                <span class="multi-resume-user-name">
+                    👤 {{ current_user.name }}
+                </span>
+
+                <a
+                    href="{{ url_for('logout') }}"
+                    class="multi-resume-logout-button"
+                >
+                    Logout
+                </a>
+
+            </div>
+
+        </header>
+
+
+        <main class="multi-resume-main">
+
+            <!-- Heading -->
+            <section class="multi-resume-heading">
+
+                <p class="section-tag">
+                    MULTIPLE CANDIDATE SCREENING
+                </p>
+
+                <h1>
+                    Compare Multiple Resumes
+                </h1>
+
+                <p>
+                    Upload multiple candidate resumes and compare
+                    every resume with one job description.
+                    The system will analyze, score and rank candidates.
+                </p>
+
+            </section>
+
+
+            <!-- Screening Form -->
+
+{% if upload_success %}
+
+<div class="upload-message success-message">
+
+    <div class="message-icon">
+        ✅
+    </div>
+
+    <h3>
+        Multiple Resumes Received Successfully
+    </h3>
+
+    <p>
+        {{ uploaded_names | length }} resumes were received
+        and are ready for candidate analysis.
+    </p>
+
+    <div class="multi-uploaded-name-list">
+
+        {% for filename in uploaded_names %}
+
+        <div class="uploaded-file-name">
+            📄 {{ filename }}
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endif %}
+
+{% if candidates %}
+
+<section class="candidate-ranking-section">
+
+    <div class="candidate-ranking-heading">
+
+        <p class="section-tag">
+            CANDIDATE RANKING
+        </p>
+
+        <h2>
+            Resume Screening Results
+        </h2>
+
+        <p>
+            Candidates are ranked from highest to lowest
+            based on their match with the job description.
+        </p>
+
+    </div>
+
+
+    <div class="candidate-ranking-list">
+
+        {% for candidate in candidates %}
+
+        <div
+            class="candidate-ranking-card
+            {% if candidate.rank == 1 %}
+                rank-first
+            {% elif candidate.rank == 2 %}
+                rank-second
+            {% elif candidate.rank == 3 %}
+                rank-third
+            {% endif %}"
+        >
+
+            <div class="candidate-rank-badge">
+
+                {% if candidate.rank == 1 %}
+                    🥇
+                {% elif candidate.rank == 2 %}
+                    🥈
+                {% elif candidate.rank == 3 %}
+                    🥉
+                {% else %}
+                    #{{ candidate.rank }}
+                {% endif %}
+
+            </div>
+
+
+            <div class="candidate-ranking-main">
+
+                <div class="candidate-ranking-top">
+
+                    <div>
+
+                        <span class="candidate-rank-label">
+                            Rank #{{ candidate.rank }}
+                        </span>
+
+                        <h3>
+                            {{ candidate.filename }}
+                        </h3>
+
+                    </div>
+
+
+                    <div class="candidate-score-box">
+
+                        <span class="candidate-score-number">
+                            {{ candidate.match_score }}%
+                        </span>
+
+                        <span class="candidate-score-label">
+                            Match Score
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="candidate-ranking-stats">
+
+                    <div>
+                        <span>Detected Skills</span>
+                        <strong>
+                            {{ candidate.resume_skills | length }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Matching Skills</span>
+                        <strong>
+                            {{ candidate.matching_skills | length }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Missing Skills</span>
+                        <strong>
+                            {{ candidate.missing_skills | length }}
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                <div class="candidate-skills-section">
+
+                    <div class="candidate-skill-group">
+
+                        <h4>
+                            ✅ Matching Skills
+                        </h4>
+
+                        <div class="candidate-skill-tags">
+
+                            {% if candidate.matching_skills %}
+
+                                {% for skill in candidate.matching_skills %}
+
+                                <span class="candidate-skill-tag match-tag">
+                                    {{ skill }}
+                                </span>
+
+                                {% endfor %}
+
+                            {% else %}
+
+                                <span class="candidate-empty-text">
+                                    No matching skills detected.
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="candidate-skill-group">
+
+                        <h4>
+                            ⚠️ Missing Skills
+                        </h4>
+
+                        <div class="candidate-skill-tags">
+
+                            {% if candidate.missing_skills %}
+
+                                {% for skill in candidate.missing_skills %}
+
+                                <span class="candidate-skill-tag missing-tag">
+                                    {{ skill }}
+                                </span>
+
+                                {% endfor %}
+
+                            {% else %}
+
+                                <span class="candidate-empty-text">
+                                    No important skills are missing.
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+
+{% endif %}
+
+
+<section class="multi-resume-form-card">
+
+    <form
+        action="{{ url_for('analyze_multiple_resumes') }}"
+        method="POST"
+        enctype="multipart/form-data"
+        class="multi-resume-form"
+    >
+
+                    <!-- Job Description -->
+                    <div class="multi-form-group">
+
+                        <label for="job_description">
+                            Job Description
+                        </label>
+
+                        <textarea
+                            id="job_description"
+                            name="job_description"
+                            rows="10"
+                            placeholder="Paste the complete job description here..."
+                            required
+                        ></textarea>
+
+                        <small>
+                            Include skills, responsibilities,
+                            technologies and qualifications.
+                        </small>
+
+                    </div>
+
+
+                    <!-- Multiple Resume Upload -->
+                    <div class="multi-form-group">
+
+                        <label for="resumes">
+                            Upload Candidate Resumes
+                        </label>
+
+                        <div class="multi-file-upload-box">
+
+                            <div class="multi-upload-icon">
+                                📚
+                            </div>
+
+                            <div class="multi-upload-content">
+
+                                <h3>
+                                    Select Multiple Resumes
+                                </h3>
+
+                                <p>
+                                    Choose two or more PDF/DOCX resumes
+                                    for candidate comparison.
+                                </p>
+
+                                <input
+                                    type="file"
+                                    id="resumes"
+                                    name="resumes"
+                                    accept=".pdf,.docx"
+                                    multiple
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+                        <small>
+                            Accepted formats: PDF and DOCX.
+                            Maximum file size: 10 MB per resume.
+                        </small>
+
+                    </div>
+
+
+                    <!-- Selected Files Preview -->
+                    <div
+                        class="multi-selected-files"
+                        id="selectedFilesContainer"
+                    >
+
+                        <div class="multi-selected-files-heading">
+
+                            <span>
+                                Selected Resumes
+                            </span>
+
+                            <span id="selectedFilesCount">
+                                0 files
+                            </span>
+
+                        </div>
+
+                        <div id="selectedFilesList">
+
+                            <p class="multi-empty-file-message">
+                                No resumes selected yet.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Submit -->
+                    <button
+                        type="submit"
+                        class="multi-screen-button"
+                    >
+                        Analyze & Rank Candidates
+                    </button>
+
+                </form>
+
+            </section>
+
+
+            <!-- Explanation -->
+            <section class="multi-process-section">
+
+                <p class="section-tag">
+                    HOW IT WORKS
+                </p>
+
+                <h2>
+                    Candidate Screening Process
+                </h2>
+
+                <div class="multi-process-grid">
+
+                    <div class="multi-process-card">
+
+                        <span>
+                            1
+                        </span>
+
+                        <div>
+                            <h3>
+                                Upload Resumes
+                            </h3>
+
+                            <p>
+                                Select multiple candidate resumes
+                                in PDF or DOCX format.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="multi-process-card">
+
+                        <span>
+                            2
+                        </span>
+
+                        <div>
+                            <h3>
+                                Extract Skills
+                            </h3>
+
+                            <p>
+                                Resume text and recognized technical
+                                skills will be extracted separately.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="multi-process-card">
+
+                        <span>
+                            3
+                        </span>
+
+                        <div>
+                            <h3>
+                                Compare With JD
+                            </h3>
+
+                            <p>
+                                Every candidate is compared with
+                                the same job description.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="multi-process-card">
+
+                        <span>
+                            4
+                        </span>
+
+                        <div>
+                            <h3>
+                                Rank Candidates
+                            </h3>
+
+                            <p>
+                                Candidates will be ranked from
+                                highest to lowest match score.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <script>
+
+        const resumesInput =
+            document.getElementById("resumes");
+
+        const selectedFilesList =
+            document.getElementById("selectedFilesList");
+
+        const selectedFilesCount =
+            document.getElementById("selectedFilesCount");
+
+
+        resumesInput.addEventListener(
+            "change",
+            () => {
+
+                const files =
+                    Array.from(resumesInput.files);
+
+                selectedFilesList.innerHTML = "";
+
+                selectedFilesCount.textContent =
+                    `${files.length} file${files.length === 1 ? "" : "s"}`;
+
+
+                if (files.length === 0) {
+
+                    selectedFilesList.innerHTML = `
+                        <p class="multi-empty-file-message">
+                            No resumes selected yet.
+                        </p>
+                    `;
+
+                    return;
+                }
+
+
+                files.forEach(
+                    (file, index) => {
+
+                        const fileItem =
+                            document.createElement("div");
+
+                        fileItem.className =
+                            "multi-selected-file-item";
+
+                        fileItem.innerHTML = `
+                            <div class="multi-selected-file-main">
+
+                                <span class="multi-file-number">
+                                    ${index + 1}
+                                </span>
+
+                                <div>
+
+                                    <strong>
+                                        ${file.name}
+                                    </strong>
+
+                                    <small>
+                                        ${(file.size / 1024 / 1024).toFixed(2)} MB
+                                    </small>
+
+                                </div>
+
+                            </div>
+
+                            <span class="multi-file-ready">
+                                Ready
+                            </span>
+                        `;
+
+                        selectedFilesList.appendChild(
+                            fileItem
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+    </script>
+
+</body>
+</html>

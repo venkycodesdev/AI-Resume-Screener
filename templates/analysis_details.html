@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Analysis Details | AI Resume Screener
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+</head>
+
+
+<body class="analysis-details-page">
+
+    <div class="analysis-details-shell">
+
+
+        <!-- ==========================================
+            NAVIGATION
+        =========================================== -->
+
+        <header class="history-topbar">
+
+            <a
+                href="{{ url_for('home') }}"
+                class="history-brand"
+            >
+                🤖 AI Resume Screener
+            </a>
+
+
+            <div class="history-user-area">
+
+                <a
+                    href="{{ url_for('dashboard') }}"
+                    class="history-nav-link"
+                >
+                    Dashboard
+                </a>
+
+                <a
+                    href="{{ url_for('history') }}"
+                    class="history-nav-link"
+                >
+                    Resume History
+                </a>
+
+                <span class="history-user-name">
+                    👤 {{ current_user.name }}
+                </span>
+
+                <a
+                    href="{{ url_for('logout') }}"
+                    class="history-logout-button"
+                >
+                    Logout
+                </a>
+
+            </div>
+
+        </header>
+
+
+        <!-- ==========================================
+            MAIN CONTENT
+        =========================================== -->
+
+        <main class="analysis-details-main">
+
+
+            <!-- Back Button -->
+
+            <a
+                href="{{ url_for('history') }}"
+                class="analysis-back-link"
+            >
+                ← Back to Resume History
+            </a>
+
+
+            <!-- Heading -->
+
+            <section class="analysis-details-heading">
+
+                <p class="section-tag">
+                    SAVED ANALYSIS
+                </p>
+
+                <h1>
+                    Resume Analysis Details
+                </h1>
+
+                <p>
+                    Review the saved screening result for this resume.
+                </p>
+
+            </section>
+
+
+            <!-- ======================================
+                SUMMARY CARD
+            ======================================= -->
+
+            <section class="analysis-detail-card">
+
+                <div class="analysis-detail-header">
+
+                    <div>
+
+                        <span class="history-type-badge">
+
+                            {% if analysis.analysis_type == "multiple" %}
+
+                                Multiple Screening
+
+                            {% else %}
+
+                                Single Resume
+
+                            {% endif %}
+
+                        </span>
+
+
+                        <h2>
+                            {{ analysis.resume_filename }}
+                        </h2>
+
+                    </div>
+
+
+                    <div class="history-score-box">
+
+                        <span class="history-score">
+                            {{ analysis.match_score }}%
+                        </span>
+
+                        <span>
+                            Match Score
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Basic Information -->
+
+                <div class="analysis-detail-grid">
+
+
+                    <div class="analysis-info-box">
+
+                        <span class="history-detail-label">
+                            Analysis Type
+                        </span>
+
+                        <strong>
+                            {{ analysis.analysis_type | title }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="analysis-info-box">
+
+                        <span class="history-detail-label">
+                            Analysis Date
+                        </span>
+
+                        <strong>
+                            {{ analysis.created_at.strftime('%d %b %Y') }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="analysis-info-box">
+
+                        <span class="history-detail-label">
+                            Candidate Rank
+                        </span>
+
+                        <strong>
+
+                            {% if analysis.candidate_rank %}
+
+                                #{{ analysis.candidate_rank }}
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                DETECTED SKILLS
+            ======================================= -->
+
+            <section class="analysis-detail-card">
+
+                <h2>
+                    Detected Resume Skills
+                </h2>
+
+                <div class="history-skill-tags">
+
+                    {% if detected_skills %}
+
+                        {% for skill in detected_skills %}
+
+                            <span class="analysis-detected-skill">
+                                {{ skill }}
+                            </span>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <span class="history-no-skills">
+                            No detected skills
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                SKILL COMPARISON
+            ======================================= -->
+
+            <section class="analysis-detail-card">
+
+                <h2>
+                    Skill Comparison
+                </h2>
+
+
+                <div class="analysis-skill-grid">
+
+
+                    <!-- Matching Skills -->
+
+                    <div class="analysis-skill-box">
+
+                        <h3>
+                            ✓ Matching Skills
+                        </h3>
+
+                        <div class="history-skill-tags">
+
+                            {% if matching_skills %}
+
+                                {% for skill in matching_skills %}
+
+                                    <span
+                                        class="history-skill-tag
+                                            history-skill-match"
+                                    >
+                                        {{ skill }}
+                                    </span>
+
+                                {% endfor %}
+
+                            {% else %}
+
+                                <span class="history-no-skills">
+                                    No matching skills
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Missing Skills -->
+
+                    <div class="analysis-skill-box">
+
+                        <h3>
+                            ✕ Missing Skills
+                        </h3>
+
+                        <div class="history-skill-tags">
+
+                            {% if missing_skills %}
+
+                                {% for skill in missing_skills %}
+
+                                    <span
+                                        class="history-skill-tag
+                                            history-skill-missing"
+                                    >
+                                        {{ skill }}
+                                    </span>
+
+                                {% endfor %}
+
+                            {% else %}
+
+                                <span class="history-no-skills">
+                                    No missing skills
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                JOB DESCRIPTION
+            ======================================= -->
+
+            <section class="analysis-detail-card">
+
+                <h2>
+                    Job Description
+                </h2>
+
+
+                {% if analysis.job_description %}
+
+                    <div class="analysis-job-description">
+
+                        {{ analysis.job_description }}
+
+                    </div>
+
+                {% else %}
+
+                    <p class="history-no-skills">
+                        No job description was saved for this analysis.
+                    </p>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- Bottom Button -->
+
+            <div class="analysis-details-bottom">
+
+                <a
+                    href="{{ url_for('history') }}"
+                    class="history-primary-button"
+                >
+                    ← Back to Resume History
+                </a>
+
+            </div>
+
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>

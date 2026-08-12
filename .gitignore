@@ -1,47 +1,34 @@
-# Virtual environments
+# Python virtual environment
 venv/
 .venv/
 
 # Python cache
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
 
-# Uploaded resume files
-uploads/*
-!uploads/.gitkeep
-
-# Environment variables and secrets
+# Flask / environment secrets
 .env
 .env.*
-*.env
+instance/
 
-# Editor folders
-.vscode/
-.idea/
-
-# Operating-system files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Test and coverage files
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Build files
-build/
-dist/
-*.egg-info/
-
-# Logs and temporary files
-*.log
-*.tmp
-*.temp
-~$*
-
-# Local databases
+# SQLite databases
 *.db
 *.sqlite
 *.sqlite3
+
+# Uploaded/temporary resumes
+uploads/
+*.pdf
+*.docx
+
+# VS Code
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

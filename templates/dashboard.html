@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Dashboard | AI Resume Screener
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+</head>
+
+
+<body class="dashboard-page">
+
+    <div class="dashboard-shell">
+
+        <!-- ==========================================
+             DASHBOARD TOP BAR
+        =========================================== -->
+
+        <header class="dashboard-topbar">
+
+            <a
+                href="{{ url_for('home') }}"
+                class="dashboard-brand"
+            >
+                🤖 AI Resume Screener
+            </a>
+
+
+            <div class="dashboard-user-area">
+
+                <span class="dashboard-user-name">
+                    👤 {{ current_user.name }}
+                </span>
+
+                <a
+                    href="{{ url_for('logout') }}"
+                    class="dashboard-logout-button"
+                >
+                    Logout
+                </a>
+
+            </div>
+
+        </header>
+
+
+        <!-- ==========================================
+             MAIN DASHBOARD
+        =========================================== -->
+
+        <main class="dashboard-main">
+
+
+            <!-- ======================================
+                 WELCOME SECTION
+            ======================================= -->
+
+            <section class="dashboard-welcome-section">
+
+                <p class="section-tag">
+                    PERSONAL DASHBOARD
+                </p>
+
+                <h1>
+                    Welcome, {{ current_user.name }} 👋
+                </h1>
+
+                <p class="dashboard-welcome-description">
+                    Manage your resume analysis, account information
+                    and saved screening history from one place.
+                </p>
+
+            </section>
+
+
+            <!-- ======================================
+                 ACCOUNT INFORMATION
+            ======================================= -->
+
+            <section class="dashboard-account-grid">
+
+
+                <!-- Email -->
+
+                <div class="dashboard-account-card">
+
+                    <div class="dashboard-account-icon">
+                        📧
+                    </div>
+
+                    <div>
+
+                        <span class="dashboard-account-label">
+                            ACCOUNT EMAIL
+                        </span>
+
+                        <strong class="dashboard-account-value">
+                            {{ current_user.email }}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Member Since -->
+
+                <div class="dashboard-account-card">
+
+                    <div class="dashboard-account-icon">
+                        🗓️
+                    </div>
+
+                    <div>
+
+                        <span class="dashboard-account-label">
+                            MEMBER SINCE
+                        </span>
+
+                        <strong class="dashboard-account-value">
+
+                            {% if current_user.created_at %}
+
+                                {{ current_user.created_at.strftime('%d %b %Y') }}
+
+                            {% else %}
+
+                                Member
+
+                            {% endif %}
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Account Status -->
+
+                <div class="dashboard-account-card">
+
+                    <div class="dashboard-account-icon">
+                        🔐
+                    </div>
+
+                    <div>
+
+                        <span class="dashboard-account-label">
+                            ACCOUNT STATUS
+                        </span>
+
+                        <strong
+                            class="dashboard-account-value dashboard-status-active"
+                        >
+                            Active
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                 QUICK ACTIONS
+            ======================================= -->
+
+            <section class="dashboard-actions-section">
+
+                <p class="section-tag">
+                    QUICK ACTIONS
+                </p>
+
+                <h2>
+                    What would you like to do?
+                </h2>
+
+
+                <div class="dashboard-actions-grid">
+
+
+                    <!-- =================================
+                         SINGLE RESUME ANALYSIS
+                    ================================== -->
+
+                    <a
+                        href="{{ url_for('home') }}#upload"
+                        class="dashboard-action-card"
+                    >
+
+                        <div class="dashboard-action-icon">
+                            📄
+                        </div>
+
+
+                        <div class="dashboard-action-content">
+
+                            <h3>
+                                Analyze Resume
+                            </h3>
+
+                            <p>
+                                Upload a resume and compare it with
+                                a job description.
+                            </p>
+
+                        </div>
+
+
+                        <span class="dashboard-action-arrow">
+                            →
+                        </span>
+
+                    </a>
+
+
+                    <!-- =================================
+                         MULTIPLE RESUME SCREENING
+                    ================================== -->
+
+                    <a
+                        href="{{ url_for('multiple_resume') }}"
+                        class="dashboard-action-card"
+                    >
+
+                        <div class="dashboard-action-icon">
+                            👥
+                        </div>
+
+
+                        <div class="dashboard-action-content">
+
+                            <h3>
+                                Multiple Resume Screening
+                            </h3>
+
+                            <p>
+                                Upload multiple candidate resumes,
+                                compare them with one job description,
+                                and rank the best candidates.
+                            </p>
+
+                        </div>
+
+
+                        <span class="dashboard-action-arrow">
+                            →
+                        </span>
+
+                    </a>
+
+
+                    <!-- =================================
+                         RESUME HISTORY
+                         STEP 6.4 - NOW ACTIVE
+                    ================================== -->
+
+                    <a
+                        href="{{ url_for('history') }}"
+                        class="dashboard-action-card"
+                    >
+
+                        <div class="dashboard-action-icon">
+                            🕘
+                        </div>
+
+
+                        <div class="dashboard-action-content">
+
+                            <h3>
+                                Resume History
+                            </h3>
+
+                            <p>
+                                View your previous resume analyses,
+                                scores and screening history.
+                            </p>
+
+                        </div>
+
+
+                        <span class="dashboard-action-arrow">
+                            →
+                        </span>
+
+                    </a>
+
+
+                    <!-- =================================
+                         SAVED REPORTS
+                         STILL COMING SOON
+                    ================================== -->
+
+                    <div
+                        class="dashboard-action-card
+                               dashboard-action-disabled"
+                    >
+
+                        <span class="dashboard-coming-soon">
+                            Coming Soon
+                        </span>
+
+
+                        <div class="dashboard-action-icon">
+                            📥
+                        </div>
+
+
+                        <div class="dashboard-action-content">
+
+                            <h3>
+                                Saved Reports
+                            </h3>
+
+                            <p>
+                                Access previously generated PDF analysis
+                                reports in a future update.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                 SECURITY SECTION
+            ======================================= -->
+
+            <section class="dashboard-security-section">
+
+                <div class="dashboard-security-content">
+
+                    <p class="section-tag">
+                        ACCOUNT SECURITY
+                    </p>
+
+                    <h2>
+                        Your session is protected
+                    </h2>
+
+                    <p>
+                        Private pages such as your dashboard,
+                        resume analysis and history require you
+                        to be logged in.
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="{{ url_for('logout') }}"
+                    class="dashboard-security-logout"
+                >
+                    Logout Securely
+                </a>
+
+            </section>
+
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>

@@ -2,12 +2,30 @@ import json
 import os
 import re
 
+from datetime import datetime, timezone
 from io import BytesIO
 from xml.sax.saxutils import escape
 
 import pdfplumber
 from docx import Document
-from flask import Flask, render_template, request, send_file
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
+from flask_sqlalchemy import SQLAlchemy
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -21,10 +39,25 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
+
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY",
+    "development-secret-key-change-later",
+)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
@@ -33,6 +66,153 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+class User(UserMixin, db.Model):
+    """
+    Store registered user account information.
+    """
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    name = db.Column(
+        db.String(100),
+        nullable=False,
+    )
+
+    email = db.Column(
+        db.String(150),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    password_hash = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    def set_password(self, password):
+        """
+        Convert a plain-text password into a secure password hash.
+        """
+
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """
+        Compare a plain-text password with the stored password hash.
+        """
+
+        return check_password_hash(
+            self.password_hash,
+            password,
+        )
+
+
+
+
+class Analysis(db.Model):
+    """
+    Store resume analysis history for each logged-in user.
+    """
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True
+    )
+
+    resume_filename = db.Column(
+        db.String(255),
+        nullable=False
+    )
+
+    analysis_type = db.Column(
+        db.String(50),
+        nullable=False,
+        default="single"
+    )
+
+    job_description = db.Column(
+        db.Text,
+        nullable=False
+    )
+
+    match_score = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0
+    )
+
+    detected_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]"
+    )
+
+    matching_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]"
+    )
+
+    missing_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]"
+    )
+
+    candidate_rank = db.Column(
+        db.Integer,
+        nullable=True
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "analyses",
+            lazy=True,
+            cascade="all, delete-orphan"
+        )
+    )
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """
+    Load the currently logged-in user from the database.
+    """
+
+    try:
+        return db.session.get(
+            User,
+            int(user_id),
+        )
+
+    except (TypeError, ValueError):
+        return None
 
 
 # Skills detected by the application
@@ -1232,19 +1412,668 @@ def build_analysis_pdf(report_data):
     return pdf_buffer
 
 
-@app.route("/")
-def home():
+@app.route("/register", methods=["GET", "POST"])
+def register():
     """
-    Display the homepage.
+    Create a new user account.
     """
 
-    return render_template("index.html")
+    if request.method == "POST":
+
+        name = request.form.get(
+            "name",
+            ""
+        ).strip()
+
+        email = request.form.get(
+            "email",
+            ""
+        ).strip().lower()
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        confirm_password = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        terms_accepted = request.form.get(
+            "terms"
+        )
+
+        # Validate name
+        if not name:
+            flash(
+                "Please enter your full name.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Validate email
+        if not email:
+            flash(
+                "Please enter your email address.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Validate password length
+        if len(password) < 8:
+            flash(
+                "Password must contain at least 8 characters.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Check password confirmation
+        if password != confirm_password:
+            flash(
+                "Passwords do not match.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Check terms
+        if not terms_accepted:
+            flash(
+                "Please accept the Terms of Use and Privacy Policy.",
+                "warning"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Check whether email already exists
+        existing_user = User.query.filter_by(
+            email=email
+        ).first()
+
+        if existing_user:
+            flash(
+                "An account with this email already exists.",
+                "warning"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        # Create new user
+        new_user = User(
+            name=name,
+            email=email
+        )
+
+        # Hash the password
+        new_user.set_password(
+            password
+        )
+
+        try:
+            db.session.add(
+                new_user
+            )
+
+            db.session.commit()
+
+        except Exception as error:
+            db.session.rollback()
+
+            app.logger.exception(
+                "User registration failed: %s",
+                error
+            )
+
+            flash(
+                "Something went wrong while creating your account.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("register")
+            )
+
+        flash(
+            "Account created successfully! You can now log in.",
+            "success"
+        )
+
+        return redirect(
+            url_for("login")
+        )
+
+    return render_template(
+        "register.html"
+    )
+
+
+@app.route("/")
+def landing():
+    """
+    Always start the website from the login page.
+
+    The AI Resume Screener itself is available at /resume-screener
+    after a successful login.
+    """
+
+    return redirect(
+        url_for("login")
+    )
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """
+    Log an existing user into the application.
+    """
+
+    if request.method == "POST":
+
+        email = request.form.get(
+            "email",
+            ""
+        ).strip().lower()
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        remember = request.form.get(
+            "remember"
+        ) == "on"
+
+        if not email or not password:
+            flash(
+                "Please enter your email and password.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        user = User.query.filter_by(
+            email=email
+        ).first()
+
+        if user is None:
+            flash(
+                "No account was found with this email.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        if not user.check_password(password):
+            flash(
+                "Incorrect password. Please try again.",
+                "danger"
+            )
+
+            return redirect(
+                url_for("login")
+            )
+
+        login_user(
+            user,
+            remember=remember
+        )
+
+        flash(
+            f"Welcome back, {user.name}!",
+            "success"
+        )
+
+        return redirect(
+            url_for("home")
+        )
+
+    return render_template(
+        "login.html"
+    )
+
+
+@app.route("/resume-screener")
+@login_required
+def home():
+    """
+    Display the AI Resume Screener only after login.
+    """
+
+    return render_template(
+        "index.html"
+    )
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    """
+    Display the logged-in user's personal dashboard.
+    """
+
+    return render_template(
+        "dashboard.html",
+        user=current_user
+    )
+    
+@app.route("/history")
+@login_required
+def history():
+    """
+    Display only the logged-in user's saved resume analyses.
+    """
+
+    analyses = Analysis.query.filter_by(
+        user_id=current_user.id
+    ).order_by(
+        Analysis.created_at.desc()
+    ).all()
+
+    # --------------------------------------------
+    #Convert stored JSON skill strings
+    #into Python lists for the History page.
+    # --------------------------------------------
+
+    for analysis in analyses:
+
+        try:
+            analysis.matching_skills_list = json.loads(
+                analysis.matching_skills or "[]"
+            )
+        except (json.JSONDecodeError, TypeError):
+            analysis.matching_skills_list = []
+
+        try:
+            analysis.missing_skills_list = json.loads(
+                analysis.missing_skills or "[]"
+            )
+        except (json.JSONDecodeError, TypeError):
+            analysis.missing_skills_list = []
+
+    return render_template(
+        "history.html",
+        analyses=analyses
+    )
+    
+    # ==================================================
+# VIEW INDIVIDUAL ANALYSIS DETAILS
+# ==================================================
+
+@app.route("/history/<int:analysis_id>")
+@login_required
+def analysis_details(analysis_id):
+    """
+    Display one saved analysis belonging to
+    the currently logged-in user.
+    """
+
+    analysis = Analysis.query.filter_by(
+        id=analysis_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    # Convert JSON skill strings back into Python lists.
+
+    try:
+        matching_skills = json.loads(
+            analysis.matching_skills or "[]"
+        )
+    except (json.JSONDecodeError, TypeError):
+        matching_skills = []
+
+    try:
+        missing_skills = json.loads(
+            analysis.missing_skills or "[]"
+        )
+    except (json.JSONDecodeError, TypeError):
+        missing_skills = []
+
+    try:
+        detected_skills = json.loads(
+            analysis.detected_skills or "[]"
+        )
+    except (json.JSONDecodeError, TypeError):
+        detected_skills = []
+
+    return render_template(
+        "analysis_details.html",
+        analysis=analysis,
+        matching_skills=matching_skills,
+        missing_skills=missing_skills,
+        detected_skills=detected_skills
+    )
+    
+    # ==================================================
+# STEP 6.8 - DELETE SAVED ANALYSIS
+# ==================================================
+
+@app.route("/history/<int:analysis_id>/delete", methods=["POST"])
+@login_required
+def delete_analysis(analysis_id):
+    """
+    Delete one saved analysis belonging to
+    the currently logged-in user.
+    """
+
+    analysis = Analysis.query.filter_by(
+        id=analysis_id,
+        user_id=current_user.id
+    ).first_or_404()
+
+    try:
+        db.session.delete(
+            analysis
+        )
+
+        db.session.commit()
+
+        flash(
+            "Analysis deleted successfully.",
+            "success"
+        )
+
+    except Exception as error:
+        db.session.rollback()
+
+        app.logger.exception(
+            "Failed to delete analysis: %s",
+            error
+        )
+
+        flash(
+            "Could not delete the analysis. Please try again.",
+            "danger"
+        )
+
+    return redirect(
+        url_for("history")
+    )
+    
+@app.route("/multiple-resume")
+@login_required
+def multiple_resume():
+    """
+    Display the multiple resume screening page.
+    """
+
+    return render_template(
+        "multiple_resume.html"
+    )
+
+@app.route("/multiple-resume/analyze", methods=["POST"])
+@login_required
+def analyze_multiple_resumes():
+    """
+    Receive multiple resumes, extract text and skills from each resume,
+    compare every candidate with the same job description,
+    calculate a match score, and rank candidates.
+    """
+
+    job_description = request.form.get(
+        "job_description",
+        ""
+    ).strip()
+
+    job_skills = extract_skills(job_description)
+    job_skill_set = set(job_skills)
+
+    files = request.files.getlist(
+        "resumes"
+    )
+
+    if not job_description:
+        flash(
+            "Please enter the job description.",
+            "danger"
+        )
+        return redirect(
+            url_for("multiple_resume")
+        )
+
+    valid_files = [
+        file
+        for file in files
+        if file and file.filename
+    ]
+
+    if len(valid_files) < 2:
+        flash(
+            "Please upload at least two resumes.",
+            "warning"
+        )
+        return redirect(
+            url_for("multiple_resume")
+        )
+
+    extracted_candidates = []
+
+    for file in valid_files:
+
+        if not allowed_file(file.filename):
+            flash(
+                f"{file.filename} is not a valid PDF or DOCX file.",
+                "danger"
+            )
+            return redirect(
+                url_for("multiple_resume")
+            )
+
+        filename = secure_filename(file.filename)
+
+        extension = filename.rsplit(
+            ".",
+            1
+        )[1].lower()
+
+        file_path = os.path.join(
+            app.config["UPLOAD_FOLDER"],
+            filename
+        )
+
+        file.save(file_path)
+
+        try:
+            extracted_text = extract_resume_text(
+                file_path,
+                extension
+            )
+
+        except Exception as error:
+            app.logger.exception(
+                "Text extraction failed for %s: %s",
+                filename,
+                error
+            )
+            flash(
+                f"Could not extract text from {filename}.",
+                "danger"
+            )
+            return redirect(
+                url_for("multiple_resume")
+            )
+
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        if not extracted_text.strip():
+            flash(
+                f"No readable text was found in {filename}.",
+                "warning"
+            )
+            return redirect(
+                url_for("multiple_resume")
+            )
+
+        cleaned_text = extracted_text.strip()
+        resume_skills = extract_skills(cleaned_text)
+        resume_skill_set = set(resume_skills)
+
+        matching_skills = sorted(
+            resume_skill_set.intersection(job_skill_set)
+        )
+
+        missing_skills = sorted(
+            job_skill_set - resume_skill_set
+        )
+
+        if job_skill_set:
+            match_score = round(
+                (len(matching_skills) / len(job_skill_set)) * 100
+            )
+        else:
+            match_score = 0
+
+        word_count = len(cleaned_text.split())
+        character_count = len(cleaned_text)
+
+        line_count = len(
+            [
+                line
+                for line in cleaned_text.splitlines()
+                if line.strip()
+            ]
+        )
+
+        candidate_data = {
+            "filename": filename,
+            "file_type": extension.upper(),
+            "extracted_text": cleaned_text,
+            "word_count": word_count,
+            "character_count": character_count,
+            "line_count": line_count,
+            "resume_skills": resume_skills,
+            "matching_skills": matching_skills,
+            "missing_skills": missing_skills,
+            "match_score": match_score,
+        }
+
+        extracted_candidates.append(candidate_data)
+
+    # STEP 5.7 - Rank candidates highest to lowest
+    extracted_candidates.sort(
+        key=lambda candidate: candidate["match_score"],
+        reverse=True
+    )
+
+    for rank, candidate in enumerate(
+        extracted_candidates,
+        start=1
+    ):
+        candidate["rank"] = rank
+
+    try:
+        for candidate in extracted_candidates:
+
+            analysis_record = Analysis(
+                user_id=current_user.id,
+                resume_filename=candidate["filename"],
+                analysis_type="multiple",
+                job_description=job_description,
+                match_score=candidate["match_score"],
+                detected_skills=json.dumps(
+                    candidate["resume_skills"]
+                ),
+                matching_skills=json.dumps(
+                    candidate["matching_skills"]
+                ),
+                missing_skills=json.dumps(
+                    candidate["missing_skills"]
+                ),
+                candidate_rank=candidate["rank"],
+            )
+
+            db.session.add(
+                analysis_record
+            )
+
+        db.session.commit()
+
+    except Exception as error:
+        db.session.rollback()
+
+        app.logger.exception(
+            "Failed to save multiple-resume analysis history: %s",
+            error
+        )
+
+    print("\n===== STEP 5.7 CANDIDATE RANKING =====")
+    print("Job Description Skills:", job_skills)
+    print("Number of resumes processed:", len(extracted_candidates))
+
+    for index, candidate in enumerate(
+        extracted_candidates,
+        start=1
+    ):
+        print(f'\nRank {candidate["rank"]} - Candidate {index}')
+        print("Filename:", candidate["filename"])
+        print("Detected Skills:", candidate["resume_skills"])
+        print("Matching Skills:", candidate["matching_skills"])
+        print("Missing Skills:", candidate["missing_skills"])
+        print("Match Score:", f'{candidate["match_score"]}%')
+        print("Rank:", candidate["rank"])
+
+    print("\n======================================\n")
+
+    return render_template(
+        "multiple_resume.html",
+        extraction_success=True,
+        candidates=extracted_candidates,
+        uploaded_names=[
+            candidate["filename"]
+            for candidate in extracted_candidates
+        ],
+        upload_success=True,
+        job_description=job_description,
+        job_skills=job_skills
+    )
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    """
+    Log the current user out and return to the login page.
+    """
+
+    logout_user()
+
+    flash(
+        "You have been logged out successfully.",
+        "success"
+    )
+
+    return redirect(
+        url_for("login")
+    )
 
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload_resume():
     """
     Upload, analyze and delete the temporary resume.
+    Save the completed single-resume analysis to the database.
     """
 
     if "resume" not in request.files:
@@ -1288,7 +2117,6 @@ def upload_resume():
     file.save(file_path)
 
     extension = filename.rsplit(".", 1)[1].lower()
-
     file_size_bytes = os.path.getsize(file_path)
 
     if file_size_bytes < 1024:
@@ -1412,6 +2240,34 @@ def upload_resume():
         missing_skills,
     )
 
+    # --------------------------------------------------
+    # STEP 6.2 - Save single-resume analysis to database
+    # --------------------------------------------------
+
+    analysis_record = Analysis(
+        user_id=current_user.id,
+        resume_filename=filename,
+        analysis_type="single",
+        job_description=job_description,
+        match_score=resume_score,
+        detected_skills=json.dumps(resume_skills),
+        matching_skills=json.dumps(matching_skills),
+        missing_skills=json.dumps(missing_skills),
+        candidate_rank=None,
+    )
+
+    try:
+        db.session.add(analysis_record)
+        db.session.commit()
+
+    except Exception as error:
+        db.session.rollback()
+
+        app.logger.exception(
+            "Failed to save resume analysis history: %s",
+            error
+        )
+
     return render_template(
         "index.html",
         upload_success=True,
@@ -1433,6 +2289,7 @@ def upload_resume():
 
 
 @app.route("/download-report", methods=["POST"])
+@login_required
 def download_report():
     """
     Generate and download the PDF analysis report.
