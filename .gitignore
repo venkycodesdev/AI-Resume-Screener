@@ -19,7 +19,8 @@ instance/
 *.sqlite3
 
 # Uploaded/temporary resumes
-uploads/
+uploads/*
+!uploads/.gitkeep
 *.pdf
 *.docx
 

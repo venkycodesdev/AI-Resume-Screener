@@ -44,12 +44,52 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
+# --------------------------------------------------
+# Production-safe paths and configuration
+# --------------------------------------------------
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
+
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY",
     "development-secret-key-change-later",
 )
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
+
+# Use a Render/PostgreSQL database when DATABASE_URL exists.
+# Otherwise use SQLite locally.
+database_url = os.environ.get(
+    "DATABASE_URL",
+    "",
+).strip()
+
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace(
+        "postgres://",
+        "postgresql://",
+        1,
+    )
+
+if database_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    sqlite_path = os.path.join(
+        INSTANCE_DIR,
+        "users.db",
+    )
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f"sqlite:///{sqlite_path}"
+    )
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 db = SQLAlchemy(app)
 
@@ -57,14 +97,6 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Please log in to access this page."
 login_manager.login_message_category = "info"
-
-UPLOAD_FOLDER = "uploads"
-ALLOWED_EXTENSIONS = {"pdf", "docx"}
-
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 class User(UserMixin, db.Model):

@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
 
-    function closeMobileMenu() {
+    const closeMobileMenu = () => {
         menuToggle.classList.remove("active");
         navLinks.classList.remove("open");
         document.body.classList.remove("menu-open");
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "aria-label",
             "Open navigation menu"
         );
-    }
+    };
 
 
     menuToggle.addEventListener("click", () => {
