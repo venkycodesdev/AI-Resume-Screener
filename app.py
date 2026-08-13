@@ -1,7 +1,6 @@
 import json
 import os
 import re
-
 from datetime import datetime, timezone
 from io import BytesIO
 from xml.sax.saxutils import escape
@@ -117,8 +116,6 @@ class User(UserMixin, db.Model):
             self.password_hash,
             password,
         )
-
-
 
 
 class Analysis(db.Model):
@@ -397,9 +394,7 @@ def extract_text_from_docx(file_path):
     extracted_text = []
 
     for paragraph in document.paragraphs:
-        paragraph_text = paragraph.text.strip()
-
-        if paragraph_text:
+        if paragraph_text := paragraph.text.strip():
             extracted_text.append(paragraph_text)
 
     return "\n".join(extracted_text)
@@ -1675,7 +1670,8 @@ def dashboard():
         "dashboard.html",
         user=current_user
     )
-    
+
+
 @app.route("/history")
 @login_required
 def history():
@@ -1690,8 +1686,8 @@ def history():
     ).all()
 
     # --------------------------------------------
-    #Convert stored JSON skill strings
-    #into Python lists for the History page.
+    # Convert stored JSON skill strings
+    # into Python lists for the History page.
     # --------------------------------------------
 
     for analysis in analyses:
@@ -1714,8 +1710,9 @@ def history():
         "history.html",
         analyses=analyses
     )
-    
-    # ==================================================
+
+
+# ==================================================
 # VIEW INDIVIDUAL ANALYSIS DETAILS
 # ==================================================
 
@@ -1762,9 +1759,10 @@ def analysis_details(analysis_id):
         missing_skills=missing_skills,
         detected_skills=detected_skills
     )
-    
-    # ==================================================
-# STEP 6.8 - DELETE SAVED ANALYSIS
+
+
+# ==================================================
+# DELETE SAVED ANALYSIS
 # ==================================================
 
 @app.route("/history/<int:analysis_id>/delete", methods=["POST"])
@@ -1808,7 +1806,8 @@ def delete_analysis(analysis_id):
     return redirect(
         url_for("history")
     )
-    
+
+
 @app.route("/multiple-resume")
 @login_required
 def multiple_resume():
@@ -1819,6 +1818,7 @@ def multiple_resume():
     return render_template(
         "multiple_resume.html"
     )
+
 
 @app.route("/multiple-resume/analyze", methods=["POST"])
 @login_required
