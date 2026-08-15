@@ -309,27 +309,55 @@
         class="multi-resume-form"
     >
 
-                    <!-- Job Description -->
-                    <div class="multi-form-group">
+                    <!-- ==========================================
+     STEP 17.6 - JOB DESCRIPTION
+=========================================== -->
 
-                        <label for="job_description">
-                            Job Description
-                        </label>
+<div class="multi-form-group">
 
-                        <textarea
-                            id="job_description"
-                            name="job_description"
-                            rows="10"
-                            placeholder="Paste the complete job description here..."
-                            required
-                        ></textarea>
+    <label for="job_description">
+        Paste Job Description
+    </label>
 
-                        <small>
-                            Include skills, responsibilities,
-                            technologies and qualifications.
-                        </small>
+    <textarea
+        id="job_description"
+        name="job_description"
+        rows="10"
+        placeholder="Paste the complete job description here..."
+    ></textarea>
 
-                    </div>
+    <small>
+        Paste the job description or upload a
+        PDF/DOCX job description below.
+    </small>
+
+</div>
+
+
+<!-- ==========================================
+     STEP 17.6 - JOB DESCRIPTION FILE
+=========================================== -->
+
+<div class="multi-form-group jd-file-upload-group">
+
+    <label for="job_description_file">
+        Or Upload Job Description File
+    </label>
+
+    <input
+        type="file"
+        id="job_description_file"
+        name="job_description_file"
+        accept=".pdf,.docx"
+        class="jd-file-input"
+    >
+
+    <small>
+        Optional: Upload one PDF or DOCX job
+        description instead of pasting the text.
+    </small>
+
+</div>
 
 
                     <!-- Multiple Resume Upload -->

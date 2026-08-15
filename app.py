@@ -38,58 +38,31 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash,
+)
 from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
 
-# --------------------------------------------------
-# Production-safe paths and configuration
-# --------------------------------------------------
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-ALLOWED_EXTENSIONS = {"pdf", "docx"}
-
-os.makedirs(INSTANCE_DIR, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY",
     "development-secret-key-change-later",
 )
-
-# Use a Render/PostgreSQL database when DATABASE_URL exists.
-# Otherwise use SQLite locally.
-database_url = os.environ.get(
-    "DATABASE_URL",
-    "",
-).strip()
-
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+database_url = os.environ.get("DATABASE_URL", "").strip()
 if database_url.startswith("postgres://"):
-    database_url = database_url.replace(
-        "postgres://",
-        "postgresql://",
-        1,
-    )
-
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 if database_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
-    sqlite_path = os.path.join(
-        INSTANCE_DIR,
-        "users.db",
-    )
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"sqlite:///{sqlite_path}"
-    )
-
+    db_path = os.path.join(INSTANCE_DIR, "users.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 db = SQLAlchemy(app)
 
@@ -97,6 +70,14 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Please log in to access this page."
 login_manager.login_message_category = "info"
+
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 class User(UserMixin, db.Model):
@@ -151,71 +132,27 @@ class User(UserMixin, db.Model):
 
 
 class Analysis(db.Model):
-    """
-    Store resume analysis history for each logged-in user.
-    """
+    """Store resume analysis history for each logged-in user."""
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
-
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
         nullable=False,
-        index=True
+        index=True,
     )
-
-    resume_filename = db.Column(
-        db.String(255),
-        nullable=False
-    )
-
-    analysis_type = db.Column(
-        db.String(50),
-        nullable=False,
-        default="single"
-    )
-
-    job_description = db.Column(
-        db.Text,
-        nullable=False
-    )
-
-    match_score = db.Column(
-        db.Integer,
-        nullable=False,
-        default=0
-    )
-
-    detected_skills = db.Column(
-        db.Text,
-        nullable=False,
-        default="[]"
-    )
-
-    matching_skills = db.Column(
-        db.Text,
-        nullable=False,
-        default="[]"
-    )
-
-    missing_skills = db.Column(
-        db.Text,
-        nullable=False,
-        default="[]"
-    )
-
-    candidate_rank = db.Column(
-        db.Integer,
-        nullable=True
-    )
-
+    resume_filename = db.Column(db.String(255), nullable=False)
+    analysis_type = db.Column(db.String(50), nullable=False, default="single")
+    job_description = db.Column(db.Text, nullable=False)
+    match_score = db.Column(db.Integer, nullable=False, default=0)
+    detected_skills = db.Column(db.Text, nullable=False, default="[]")
+    matching_skills = db.Column(db.Text, nullable=False, default="[]")
+    missing_skills = db.Column(db.Text, nullable=False, default="[]")
+    candidate_rank = db.Column(db.Integer, nullable=True)
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc),
     )
 
     user = db.relationship(
@@ -223,8 +160,8 @@ class Analysis(db.Model):
         backref=db.backref(
             "analyses",
             lazy=True,
-            cascade="all, delete-orphan"
-        )
+            cascade="all, delete-orphan",
+        ),
     )
 
 
@@ -426,7 +363,9 @@ def extract_text_from_docx(file_path):
     extracted_text = []
 
     for paragraph in document.paragraphs:
-        if paragraph_text := paragraph.text.strip():
+        paragraph_text = paragraph.text.strip()
+
+        if paragraph_text:
             extracted_text.append(paragraph_text)
 
     return "\n".join(extracted_text)
@@ -472,6 +411,28 @@ def extract_skills(text):
             detected_skills.append(skill)
 
     return detected_skills
+
+
+def validate_detected_job_skills(job_skills):
+    """Return True when at least one recognized job skill was detected."""
+    return bool(job_skills)
+
+
+def highlight_keywords(text, skills):
+    """Escape text and wrap recognized skills in safe mark tags."""
+    if not text:
+        return ""
+    highlighted_text = escape(text)
+    for skill in sorted(skills or [], key=len, reverse=True):
+        pattern = re.compile(
+            rf"(?<!\w){re.escape(skill)}(?!\w)",
+            re.IGNORECASE,
+        )
+        highlighted_text = pattern.sub(
+            lambda m: f'<mark class="keyword-highlight">{m.group(0)}</mark>',
+            highlighted_text,
+        )
+    return highlighted_text
 
 
 def generate_suggestions(
@@ -1439,756 +1400,384 @@ def build_analysis_pdf(report_data):
     return pdf_buffer
 
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    """
-    Create a new user account.
-    """
-
-    if request.method == "POST":
-
-        name = request.form.get(
-            "name",
-            ""
-        ).strip()
-
-        email = request.form.get(
-            "email",
-            ""
-        ).strip().lower()
-
-        password = request.form.get(
-            "password",
-            ""
-        )
-
-        confirm_password = request.form.get(
-            "confirm_password",
-            ""
-        )
-
-        terms_accepted = request.form.get(
-            "terms"
-        )
-
-        # Validate name
-        if not name:
-            flash(
-                "Please enter your full name.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Validate email
-        if not email:
-            flash(
-                "Please enter your email address.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Validate password length
-        if len(password) < 8:
-            flash(
-                "Password must contain at least 8 characters.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Check password confirmation
-        if password != confirm_password:
-            flash(
-                "Passwords do not match.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Check terms
-        if not terms_accepted:
-            flash(
-                "Please accept the Terms of Use and Privacy Policy.",
-                "warning"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Check whether email already exists
-        existing_user = User.query.filter_by(
-            email=email
-        ).first()
-
-        if existing_user:
-            flash(
-                "An account with this email already exists.",
-                "warning"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
-        # Create new user
-        new_user = User(
-            name=name,
-            email=email
-        )
-
-        # Hash the password
-        new_user.set_password(
-            password
-        )
-
-        try:
-            db.session.add(
-                new_user
-            )
-
-            db.session.commit()
-
-        except Exception as error:
-            db.session.rollback()
-
-            app.logger.exception(
-                "User registration failed: %s",
-                error
-            )
-
-            flash(
-                "Something went wrong while creating your account.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("register")
-            )
-
+@app.errorhandler(413)
+def file_too_large(error):
+    if request.path.startswith("/multiple-resume"):
         flash(
-            "Account created successfully! You can now log in.",
-            "success"
+            "One or more uploaded files are too large. "
+            "Maximum request size is 10 MB.",
+            "danger",
         )
-
-        return redirect(
-            url_for("login")
-        )
-
-    return render_template(
-        "register.html"
+        return redirect(url_for("multiple_resume"))
+    error_message = (
+        "The uploaded file is too large. Maximum request size is 10 MB."
     )
+    return render_template("index.html", upload_error=error_message), 413
 
 
 @app.route("/")
 def landing():
-    """
-    Always start the website from the login page.
+    return redirect(url_for("login"))
 
-    The AI Resume Screener itself is available at /resume-screener
-    after a successful login.
-    """
 
-    return redirect(
-        url_for("login")
-    )
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        terms_accepted = request.form.get("terms")
+
+        if not name:
+            flash("Please enter your full name.", "danger")
+            return redirect(url_for("register"))
+        if not email:
+            flash("Please enter your email address.", "danger")
+            return redirect(url_for("register"))
+        if len(password) < 8:
+            flash("Password must contain at least 8 characters.", "danger")
+            return redirect(url_for("register"))
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("register"))
+        if not terms_accepted:
+            flash(
+                "Please accept the Terms of Use and Privacy Policy.",
+                "warning",
+            )
+            return redirect(url_for("register"))
+        if User.query.filter_by(email=email).first():
+            flash("An account with this email already exists.", "warning")
+            return redirect(url_for("register"))
+
+        new_user = User(name=name, email=email)
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            app.logger.exception("User registration failed: %s", error)
+            flash(
+                "Something went wrong while creating your account.",
+                "danger",
+            )
+            return redirect(url_for("register"))
+
+        flash("Account created successfully! You can now log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """
-    Log an existing user into the application.
-    """
-
     if request.method == "POST":
-
-        email = request.form.get(
-            "email",
-            ""
-        ).strip().lower()
-
-        password = request.form.get(
-            "password",
-            ""
-        )
-
-        remember = request.form.get(
-            "remember"
-        ) == "on"
-
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        remember = request.form.get("remember") == "on"
         if not email or not password:
-            flash(
-                "Please enter your email and password.",
-                "danger"
-            )
+            flash("Please enter your email and password.", "danger")
+            return redirect(url_for("login"))
+        user = User.query.filter_by(email=email).first()
+        if user is None or not user.check_password(password):
+            flash("Invalid email or password. Please try again.", "danger")
+            return redirect(url_for("login"))
+        login_user(user, remember=remember)
+        flash(f"Welcome back, {user.name}!", "success")
+        return redirect(url_for("home"))
+    return render_template("login.html")
 
-            return redirect(
-                url_for("login")
-            )
 
-        user = User.query.filter_by(
-            email=email
-        ).first()
-
-        if user is None:
-            flash(
-                "No account was found with this email.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("login")
-            )
-
-        if not user.check_password(password):
-            flash(
-                "Incorrect password. Please try again.",
-                "danger"
-            )
-
-            return redirect(
-                url_for("login")
-            )
-
-        login_user(
-            user,
-            remember=remember
-        )
-
-        flash(
-            f"Welcome back, {user.name}!",
-            "success"
-        )
-
-        return redirect(
-            url_for("home")
-        )
-
-    return render_template(
-        "login.html"
-    )
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("You have been logged out successfully.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/resume-screener")
 @login_required
 def home():
-    """
-    Display the AI Resume Screener only after login.
-    """
-
-    return render_template(
-        "index.html"
-    )
+    return render_template("index.html")
 
 
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    """
-    Display the logged-in user's personal dashboard.
-    """
-
-    return render_template(
-        "dashboard.html",
-        user=current_user
-    )
+    return render_template("dashboard.html", user=current_user)
 
 
 @app.route("/history")
 @login_required
 def history():
-    """
-    Display only the logged-in user's saved resume analyses.
-    """
-
     analyses = Analysis.query.filter_by(
         user_id=current_user.id
-    ).order_by(
-        Analysis.created_at.desc()
-    ).all()
-
-    # --------------------------------------------
-    # Convert stored JSON skill strings
-    # into Python lists for the History page.
-    # --------------------------------------------
-
+    ).order_by(Analysis.created_at.desc()).all()
     for analysis in analyses:
-
         try:
             analysis.matching_skills_list = json.loads(
                 analysis.matching_skills or "[]"
             )
         except (json.JSONDecodeError, TypeError):
             analysis.matching_skills_list = []
-
         try:
             analysis.missing_skills_list = json.loads(
                 analysis.missing_skills or "[]"
             )
         except (json.JSONDecodeError, TypeError):
             analysis.missing_skills_list = []
+    return render_template("history.html", analyses=analyses)
 
-    return render_template(
-        "history.html",
-        analyses=analyses
-    )
-
-
-# ==================================================
-# VIEW INDIVIDUAL ANALYSIS DETAILS
-# ==================================================
 
 @app.route("/history/<int:analysis_id>")
 @login_required
 def analysis_details(analysis_id):
-    """
-    Display one saved analysis belonging to
-    the currently logged-in user.
-    """
-
     analysis = Analysis.query.filter_by(
-        id=analysis_id,
-        user_id=current_user.id
+        id=analysis_id, user_id=current_user.id
     ).first_or_404()
-
-    # Convert JSON skill strings back into Python lists.
-
     try:
-        matching_skills = json.loads(
-            analysis.matching_skills or "[]"
-        )
+        matching_skills = json.loads(analysis.matching_skills or "[]")
     except (json.JSONDecodeError, TypeError):
         matching_skills = []
-
     try:
-        missing_skills = json.loads(
-            analysis.missing_skills or "[]"
-        )
+        missing_skills = json.loads(analysis.missing_skills or "[]")
     except (json.JSONDecodeError, TypeError):
         missing_skills = []
-
     try:
-        detected_skills = json.loads(
-            analysis.detected_skills or "[]"
-        )
+        detected_skills = json.loads(analysis.detected_skills or "[]")
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
-
     return render_template(
         "analysis_details.html",
         analysis=analysis,
         matching_skills=matching_skills,
         missing_skills=missing_skills,
-        detected_skills=detected_skills
+        detected_skills=detected_skills,
     )
 
-
-# ==================================================
-# DELETE SAVED ANALYSIS
-# ==================================================
 
 @app.route("/history/<int:analysis_id>/delete", methods=["POST"])
 @login_required
 def delete_analysis(analysis_id):
-    """
-    Delete one saved analysis belonging to
-    the currently logged-in user.
-    """
-
     analysis = Analysis.query.filter_by(
-        id=analysis_id,
-        user_id=current_user.id
+        id=analysis_id, user_id=current_user.id
     ).first_or_404()
-
     try:
-        db.session.delete(
-            analysis
-        )
-
+        db.session.delete(analysis)
         db.session.commit()
-
-        flash(
-            "Analysis deleted successfully.",
-            "success"
-        )
-
+        flash("Analysis deleted successfully.", "success")
     except Exception as error:
         db.session.rollback()
+        app.logger.exception("Failed to delete analysis: %s", error)
+        flash("Could not delete the analysis. Please try again.", "danger")
+    return redirect(url_for("history"))
 
-        app.logger.exception(
-            "Failed to delete analysis: %s",
-            error
+
+def extract_uploaded_jd(form_text, uploaded_file, prefix):
+    job_description = (form_text or "").strip()
+    has_uploaded = uploaded_file is not None and uploaded_file.filename != ""
+    if not job_description and not has_uploaded:
+        return None, (
+            "Please paste the job description or upload a PDF/DOCX "
+            "job description."
         )
-
-        flash(
-            "Could not delete the analysis. Please try again.",
-            "danger"
+    if has_uploaded:
+        if not allowed_file(uploaded_file.filename):
+            return None, "Job description file must be PDF or DOCX."
+        filename = secure_filename(uploaded_file.filename)
+        extension = filename.rsplit(".", 1)[1].lower()
+        path = os.path.join(
+            app.config["UPLOAD_FOLDER"], f"{prefix}_{filename}"
         )
-
-    return redirect(
-        url_for("history")
-    )
+        try:
+            uploaded_file.save(path)
+            text = extract_resume_text(path, extension).strip()
+            if not text:
+                return None, (
+                    "No readable text was found inside the "
+                    "uploaded job description file."
+                )
+            job_description = text
+        except Exception:
+            app.logger.exception(
+                "Job description extraction failed"
+            )
+            return None, "The uploaded job description could not be processed."
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+    return job_description, None
 
 
 @app.route("/multiple-resume")
 @login_required
 def multiple_resume():
-    """
-    Display the multiple resume screening page.
-    """
-
-    return render_template(
-        "multiple_resume.html"
-    )
+    return render_template("multiple_resume.html")
 
 
 @app.route("/multiple-resume/analyze", methods=["POST"])
 @login_required
 def analyze_multiple_resumes():
-    """
-    Receive multiple resumes, extract text and skills from each resume,
-    compare every candidate with the same job description,
-    calculate a match score, and rank candidates.
-    """
-
-    job_description = request.form.get(
-        "job_description",
-        ""
-    ).strip()
+    job_description, error = extract_uploaded_jd(
+        request.form.get("job_description", ""),
+        request.files.get("job_description_file"),
+        "multi_jd",
+    )
+    if error:
+        flash(error, "danger")
+        return redirect(url_for("multiple_resume"))
 
     job_skills = extract_skills(job_description)
-    job_skill_set = set(job_skills)
-
-    files = request.files.getlist(
-        "resumes"
-    )
-
-    if not job_description:
+    if not validate_detected_job_skills(job_skills):
         flash(
-            "Please enter the job description.",
-            "danger"
-        )
-        return redirect(
-            url_for("multiple_resume")
-        )
-
-    valid_files = [
-        file
-        for file in files
-        if file and file.filename
-    ]
-
-    if len(valid_files) < 2:
-        flash(
-            "Please upload at least two resumes.",
+            "The job description contains no recognized skills. "
+            "Please provide a more detailed job description.",
             "warning"
         )
-        return redirect(
-            url_for("multiple_resume")
+        return redirect(url_for("multiple_resume"))
+    job_skill_set = set(job_skills)
+
+    files = request.files.getlist("resumes")
+    valid_files = [file for file in files if file and file.filename]
+    if len(valid_files) < 2:
+        flash("Please upload at least two resumes.", "warning")
+        return redirect(url_for("multiple_resume"))
+
+    uploaded_names = [secure_filename(file.filename) for file in valid_files]
+    if len(uploaded_names) != len(set(uploaded_names)):
+        flash(
+            "Duplicate resume filenames were detected. "
+            "Please rename the files and upload them again.",
+            "warning"
         )
+        return redirect(url_for("multiple_resume"))
 
-    extracted_candidates = []
-
+    candidates = []
     for file in valid_files:
-
         if not allowed_file(file.filename):
             flash(
                 f"{file.filename} is not a valid PDF or DOCX file.",
                 "danger"
             )
-            return redirect(
-                url_for("multiple_resume")
-            )
-
+            return redirect(url_for("multiple_resume"))
         filename = secure_filename(file.filename)
-
-        extension = filename.rsplit(
-            ".",
-            1
-        )[1].lower()
-
-        file_path = os.path.join(
-            app.config["UPLOAD_FOLDER"],
-            filename
-        )
-
-        file.save(file_path)
-
+        extension = filename.rsplit(".", 1)[1].lower()
+        path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         try:
-            extracted_text = extract_resume_text(
-                file_path,
-                extension
-            )
-
+            file.save(path)
+            text = extract_resume_text(path, extension).strip()
         except Exception as error:
             app.logger.exception(
-                "Text extraction failed for %s: %s",
-                filename,
-                error
+                "Text extraction failed for %s: %s", filename, error
             )
-            flash(
-                f"Could not extract text from {filename}.",
-                "danger"
-            )
-            return redirect(
-                url_for("multiple_resume")
-            )
-
+            flash(f"Could not extract text from {filename}.", "danger")
+            return redirect(url_for("multiple_resume"))
         finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            if os.path.exists(path):
+                os.remove(path)
+        if not text:
+            flash(f"No readable text was found in {filename}.", "warning")
+            return redirect(url_for("multiple_resume"))
 
-        if not extracted_text.strip():
-            flash(
-                f"No readable text was found in {filename}.",
-                "warning"
-            )
-            return redirect(
-                url_for("multiple_resume")
-            )
-
-        cleaned_text = extracted_text.strip()
-        resume_skills = extract_skills(cleaned_text)
+        resume_skills = extract_skills(text)
         resume_skill_set = set(resume_skills)
-
-        matching_skills = sorted(
-            resume_skill_set.intersection(job_skill_set)
-        )
-
-        missing_skills = sorted(
-            job_skill_set - resume_skill_set
-        )
-
-        if job_skill_set:
-            match_score = round(
-                (len(matching_skills) / len(job_skill_set)) * 100
-            )
-        else:
-            match_score = 0
-
-        word_count = len(cleaned_text.split())
-        character_count = len(cleaned_text)
-
-        line_count = len(
-            [
-                line
-                for line in cleaned_text.splitlines()
-                if line.strip()
-            ]
-        )
-
-        candidate_data = {
+        matching_skills = sorted(resume_skill_set & job_skill_set)
+        missing_skills = sorted(job_skill_set - resume_skill_set)
+        score = round(len(matching_skills) / len(job_skill_set) * 100)
+        candidates.append({
             "filename": filename,
             "file_type": extension.upper(),
-            "extracted_text": cleaned_text,
-            "word_count": word_count,
-            "character_count": character_count,
-            "line_count": line_count,
+            "extracted_text": text,
+            "word_count": len(text.split()),
+            "character_count": len(text),
+            "line_count": len([
+                line for line in text.splitlines() if line.strip()
+            ]),
             "resume_skills": resume_skills,
             "matching_skills": matching_skills,
             "missing_skills": missing_skills,
-            "match_score": match_score,
-        }
+            "match_score": score,
+        })
 
-        extracted_candidates.append(candidate_data)
-
-    # STEP 5.7 - Rank candidates highest to lowest
-    extracted_candidates.sort(
-        key=lambda candidate: candidate["match_score"],
-        reverse=True
-    )
-
-    for rank, candidate in enumerate(
-        extracted_candidates,
-        start=1
-    ):
+    candidates.sort(key=lambda c: c["match_score"], reverse=True)
+    for rank, candidate in enumerate(candidates, start=1):
         candidate["rank"] = rank
 
     try:
-        for candidate in extracted_candidates:
-
-            analysis_record = Analysis(
+        for candidate in candidates:
+            db.session.add(Analysis(
                 user_id=current_user.id,
                 resume_filename=candidate["filename"],
                 analysis_type="multiple",
                 job_description=job_description,
                 match_score=candidate["match_score"],
-                detected_skills=json.dumps(
-                    candidate["resume_skills"]
-                ),
-                matching_skills=json.dumps(
-                    candidate["matching_skills"]
-                ),
-                missing_skills=json.dumps(
-                    candidate["missing_skills"]
-                ),
+                detected_skills=json.dumps(candidate["resume_skills"]),
+                matching_skills=json.dumps(candidate["matching_skills"]),
+                missing_skills=json.dumps(candidate["missing_skills"]),
                 candidate_rank=candidate["rank"],
-            )
-
-            db.session.add(
-                analysis_record
-            )
-
+            ))
         db.session.commit()
-
-    except Exception as error:
+    except Exception:
         db.session.rollback()
-
-        app.logger.exception(
-            "Failed to save multiple-resume analysis history: %s",
-            error
-        )
-
-    print("\n===== STEP 5.7 CANDIDATE RANKING =====")
-    print("Job Description Skills:", job_skills)
-    print("Number of resumes processed:", len(extracted_candidates))
-
-    for index, candidate in enumerate(
-        extracted_candidates,
-        start=1
-    ):
-        print(f'\nRank {candidate["rank"]} - Candidate {index}')
-        print("Filename:", candidate["filename"])
-        print("Detected Skills:", candidate["resume_skills"])
-        print("Matching Skills:", candidate["matching_skills"])
-        print("Missing Skills:", candidate["missing_skills"])
-        print("Match Score:", f'{candidate["match_score"]}%')
-        print("Rank:", candidate["rank"])
-
-    print("\n======================================\n")
+        app.logger.exception("Failed to save multiple-resume history")
 
     return render_template(
         "multiple_resume.html",
         extraction_success=True,
-        candidates=extracted_candidates,
-        uploaded_names=[
-            candidate["filename"]
-            for candidate in extracted_candidates
-        ],
+        candidates=candidates,
+        uploaded_names=[c["filename"] for c in candidates],
         upload_success=True,
         job_description=job_description,
-        job_skills=job_skills
-    )
-
-
-@app.route("/logout")
-@login_required
-def logout():
-    """
-    Log the current user out and return to the login page.
-    """
-
-    logout_user()
-
-    flash(
-        "You have been logged out successfully.",
-        "success"
-    )
-
-    return redirect(
-        url_for("login")
+        job_skills=job_skills,
     )
 
 
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload_resume():
-    """
-    Upload, analyze and delete the temporary resume.
-    Save the completed single-resume analysis to the database.
-    """
-
     if "resume" not in request.files:
         return render_template(
-            "index.html",
-            upload_error="No resume file was received.",
+            "index.html", upload_error="No resume file was received."
         )
-
     file = request.files["resume"]
-
-    job_description = request.form.get(
-        "job_description",
-        "",
-    ).strip()
-
     if file.filename == "":
         return render_template(
-            "index.html",
-            upload_error="Please select a resume file.",
+            "index.html", upload_error="Please select a resume file."
         )
-
-    if not job_description:
-        return render_template(
-            "index.html",
-            upload_error="Please paste the job description.",
-        )
-
     if not allowed_file(file.filename):
         return render_template(
             "index.html",
-            upload_error="Only PDF and DOCX files are allowed.",
+            upload_error="Only PDF and DOCX resume files are allowed.",
         )
+
+    job_description, error = extract_uploaded_jd(
+        request.form.get("job_description", ""),
+        request.files.get("job_description_file"),
+        "jd",
+    )
+    if error:
+        return render_template("index.html", upload_error=error)
 
     filename = secure_filename(file.filename)
-
-    file_path = os.path.join(
-        app.config["UPLOAD_FOLDER"],
-        filename,
-    )
-
-    file.save(file_path)
-
     extension = filename.rsplit(".", 1)[1].lower()
-    file_size_bytes = os.path.getsize(file_path)
-
-    if file_size_bytes < 1024:
-        formatted_file_size = f"{file_size_bytes} bytes"
-
-    elif file_size_bytes < 1024 * 1024:
-        formatted_file_size = (
-            f"{file_size_bytes / 1024:.2f} KB"
-        )
-
-    else:
-        formatted_file_size = (
-            f"{file_size_bytes / (1024 * 1024):.2f} MB"
-        )
-
+    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     try:
-        extracted_text = extract_resume_text(
-            file_path,
-            extension,
-        )
-
+        file.save(path)
+        size = os.path.getsize(path)
+        text = extract_resume_text(path, extension).strip()
     except Exception as error:
-        app.logger.exception(
-            "Resume text extraction failed: %s",
-            error,
-        )
-
+        app.logger.exception("Resume processing failed: %s", error)
         return render_template(
             "index.html",
-            upload_error=(
-                "The resume was uploaded, but its text "
-                "could not be extracted."
-            ),
+            upload_error="The resume could not be processed.",
         )
-
     finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-    if not extracted_text.strip():
+        if os.path.exists(path):
+            os.remove(path)
+    if not text:
         return render_template(
             "index.html",
             upload_error=(
@@ -2196,116 +1785,83 @@ def upload_resume():
             ),
         )
 
-    cleaned_resume_text = extracted_text.strip()
-
-    resume_word_count = len(
-        cleaned_resume_text.split()
-    )
-
-    resume_character_count = len(
-        cleaned_resume_text
-    )
-
-    resume_line_count = len(
-        [
-            line
-            for line in cleaned_resume_text.splitlines()
-            if line.strip()
-        ]
-    )
+    if size < 1024:
+        formatted_size = f"{size} bytes"
+    elif size < 1024 * 1024:
+        formatted_size = f"{size / 1024:.2f} KB"
+    else:
+        formatted_size = f"{size / (1024 * 1024):.2f} MB"
 
     resume_info = {
         "filename": filename,
         "file_type": extension.upper(),
-        "file_size": formatted_file_size,
-        "word_count": resume_word_count,
-        "character_count": resume_character_count,
-        "line_count": resume_line_count,
+        "file_size": formatted_size,
+        "word_count": len(text.split()),
+        "character_count": len(text),
+        "line_count": len(
+            [line for line in text.splitlines() if line.strip()]
+        ),
         "status": "Successfully processed",
     }
 
-    resume_skills = extract_skills(extracted_text)
+    resume_skills = extract_skills(text)
     job_skills = extract_skills(job_description)
-
-    resume_skill_set = set(resume_skills)
-    job_skill_set = set(job_skills)
-
-    matching_skills = sorted(
-        resume_skill_set.intersection(job_skill_set)
-    )
-
-    missing_skills = sorted(
-        job_skill_set - resume_skill_set
-    )
-
-    if job_skill_set:
-        resume_score = round(
-            (len(matching_skills) / len(job_skill_set)) * 100
+    if not validate_detected_job_skills(job_skills):
+        return render_template(
+            "index.html",
+            upload_error=(
+                "The job description contains no recognized skills. "
+                "Please provide a more detailed job description."
+            ),
         )
-    else:
-        resume_score = 0
 
+    resume_set, job_set = set(resume_skills), set(job_skills)
+    matching_skills = sorted(resume_set & job_set)
+    missing_skills = sorted(job_set - resume_set)
+    resume_score = round(len(matching_skills) / len(job_set) * 100)
     suggestions = generate_suggestions(
-        missing_skills,
-        resume_score,
-        resume_skills,
+        missing_skills, resume_score, resume_skills
     )
-
-    ats_rating = calculate_ats_rating(
-        resume_score
-    )
-
+    ats_rating = calculate_ats_rating(resume_score)
     resume_strength = calculate_resume_strength(
-        extracted_text,
-        resume_skills,
-        resume_score,
+        text, resume_skills, resume_score
     )
-
     skill_gap_analysis = calculate_skill_gap_analysis(
-        resume_skills,
-        job_skills,
+        resume_skills, job_skills
     )
-
     final_recommendation = generate_final_recommendation(
-        resume_score,
-        matching_skills,
-        missing_skills,
+        resume_score, matching_skills, missing_skills
     )
-
-    # --------------------------------------------------
-    # STEP 6.2 - Save single-resume analysis to database
-    # --------------------------------------------------
-
-    analysis_record = Analysis(
-        user_id=current_user.id,
-        resume_filename=filename,
-        analysis_type="single",
-        job_description=job_description,
-        match_score=resume_score,
-        detected_skills=json.dumps(resume_skills),
-        matching_skills=json.dumps(matching_skills),
-        missing_skills=json.dumps(missing_skills),
-        candidate_rank=None,
+    highlighted_resume_text = highlight_keywords(text, job_skills)
+    highlighted_job_description = highlight_keywords(
+        job_description, job_skills
     )
 
     try:
-        db.session.add(analysis_record)
+        db.session.add(Analysis(
+            user_id=current_user.id,
+            resume_filename=filename,
+            analysis_type="single",
+            job_description=job_description,
+            match_score=resume_score,
+            detected_skills=json.dumps(resume_skills),
+            matching_skills=json.dumps(matching_skills),
+            missing_skills=json.dumps(missing_skills),
+            candidate_rank=None,
+        ))
         db.session.commit()
-
-    except Exception as error:
+    except Exception:
         db.session.rollback()
-
-        app.logger.exception(
-            "Failed to save resume analysis history: %s",
-            error
-        )
+        app.logger.exception("Failed to save resume analysis history")
 
     return render_template(
         "index.html",
         upload_success=True,
         uploaded_filename=filename,
-        extracted_text=extracted_text,
+        extracted_text=text,
         job_description=job_description,
+        highlighted_resume_text=highlighted_resume_text,
+        highlighted_job_description=highlighted_job_description,
         resume_skills=resume_skills,
         job_skills=job_skills,
         matching_skills=matching_skills,
@@ -2323,55 +1879,18 @@ def upload_resume():
 @app.route("/download-report", methods=["POST"])
 @login_required
 def download_report():
-    """
-    Generate and download the PDF analysis report.
-    """
-
     report_data = {
-        "filename": request.form.get(
-            "filename",
-            "Resume",
-        ),
-        "file_type": request.form.get(
-            "file_type",
-            "Unknown",
-        ),
-        "file_size": request.form.get(
-            "file_size",
-            "Unknown",
-        ),
-        "word_count": request.form.get(
-            "word_count",
-            "0",
-        ),
-        "resume_score": request.form.get(
-            "resume_score",
-            "0",
-        ),
-        "ats_label": request.form.get(
-            "ats_label",
-            "Not available",
-        ),
-        "strength_score": request.form.get(
-            "strength_score",
-            "0",
-        ),
-        "strength_label": request.form.get(
-            "strength_label",
-            "Not available",
-        ),
-        "final_title": request.form.get(
-            "final_title",
-            "Resume Analysis",
-        ),
-        "final_message": request.form.get(
-            "final_message",
-            "",
-        ),
-        "next_action": request.form.get(
-            "next_action",
-            "",
-        ),
+        "filename": request.form.get("filename", "Resume"),
+        "file_type": request.form.get("file_type", "Unknown"),
+        "file_size": request.form.get("file_size", "Unknown"),
+        "word_count": request.form.get("word_count", "0"),
+        "resume_score": request.form.get("resume_score", "0"),
+        "ats_label": request.form.get("ats_label", "Not available"),
+        "strength_score": request.form.get("strength_score", "0"),
+        "strength_label": request.form.get("strength_label", "Not available"),
+        "final_title": request.form.get("final_title", "Resume Analysis"),
+        "final_message": request.form.get("final_message", ""),
+        "next_action": request.form.get("next_action", ""),
         "matching_skills": safe_json_list(
             request.form.get("matching_skills")
         ),
@@ -2384,35 +1903,16 @@ def download_report():
         "improvement_areas": safe_json_list(
             request.form.get("improvement_areas")
         ),
-        "suggestions": safe_json_list(
-            request.form.get("suggestions")
-        ),
+        "suggestions": safe_json_list(request.form.get("suggestions")),
     }
-
-    pdf_buffer = build_analysis_pdf(
-        report_data
-    )
-
-    original_name = os.path.splitext(
-        report_data["filename"]
-    )[0]
-
-    safe_report_name = secure_filename(
-        original_name
-    )
-
-    if not safe_report_name:
-        safe_report_name = "resume"
-
-    download_filename = (
-        f"{safe_report_name}_analysis_report.pdf"
-    )
-
+    pdf_buffer = build_analysis_pdf(report_data)
+    original_name = os.path.splitext(report_data["filename"])[0]
+    safe_name = secure_filename(original_name) or "resume"
     return send_file(
         pdf_buffer,
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=download_filename,
+        download_name=f"{safe_name}_analysis_report.pdf",
     )
 
 

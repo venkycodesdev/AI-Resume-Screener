@@ -1710,7 +1710,39 @@
 
                     </div>
 
-                    <pre class="extracted-text-box">{{ extracted_text }}</pre>
+                    <h3>Resume Text Preview</h3>
+
+<p>
+    This is the text extracted from your uploaded
+    resume. It is used for skill matching and resume
+    analysis.
+</p>
+
+</div>
+
+<div class="keyword-highlight-card">
+
+    <h3>
+        Highlighted Resume Keywords
+    </h3>
+
+    <div class="highlighted-text-content">
+        {{ highlighted_resume_text | safe }}
+    </div>
+
+</div>
+
+<div class="keyword-highlight-card">
+
+    <h3>
+        Highlighted Job Description Keywords
+    </h3>
+
+    <div class="highlighted-text-content">
+        {{ highlighted_job_description | safe }}
+    </div>
+
+</div>
 
                     <div class="result-actions">
 
@@ -1796,8 +1828,35 @@
                             class="job-description-input"
                             rows="10"
                             placeholder="Paste the complete job description here..."
-                            required
                         ></textarea>
+
+                        <!-- ==========================================
+                        STEP 17.4 - JOB DESCRIPTION FILE UPLOAD
+=========================================== -->
+
+<div class="form-group jd-file-upload-group">
+
+    <label
+        for="job_description_file"
+        class="job-label"
+    >
+        Or Upload Job Description File
+    </label>
+
+    <input
+        type="file"
+        id="job_description_file"
+        name="job_description_file"
+        accept=".pdf,.docx"
+        class="jd-file-input"
+    >
+
+    <p class="file-help">
+        Optional: Upload a PDF or DOCX job description
+        instead of pasting the text above.
+    </p>
+
+</div>
 
                         <p class="file-help">
                             Include required skills, responsibilities and
