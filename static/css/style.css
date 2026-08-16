@@ -6172,3 +6172,207 @@ DELETE HISTORY RECORD
 
     font-weight: 700;
 }
+
+/* ==================================================
+   STEP 18.6 - INTERVIEW QUESTION GENERATOR
+================================================== */
+
+.interview-questions-section {
+    margin-top: 40px;
+    padding: 40px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+}
+
+.interview-questions-heading {
+    margin-bottom: 30px;
+}
+
+.interview-questions-heading .section-tag {
+    margin-bottom: 12px;
+}
+
+.interview-questions-heading h3 {
+    margin: 0 0 12px;
+    font-size: 32px;
+    line-height: 1.2;
+    color: #f8fafc;
+}
+
+.interview-questions-heading > p:last-child {
+    max-width: 750px;
+    margin: 0;
+    color: #94a3b8;
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+
+/* Question Cards */
+
+.interview-question-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.interview-question-card {
+    padding: 28px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.interview-question-card:hover {
+    transform: translateY(-4px);
+    border-color: #38bdf8;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.18);
+}
+
+
+/* Make the third card full width */
+
+.interview-question-card:last-child {
+    grid-column: 1 / -1;
+}
+
+
+/* Card Heading */
+
+.interview-card-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.interview-card-icon {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+
+    font-size: 24px;
+}
+
+.interview-card-heading h4 {
+    margin: 0 0 7px;
+    color: #f8fafc;
+    font-size: 21px;
+}
+
+.interview-card-heading p {
+    margin: 0;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+
+/* Question List */
+
+.interview-question-list {
+    margin: 0;
+    padding-left: 25px;
+}
+
+.interview-question-list li {
+    margin-bottom: 12px;
+    padding: 13px 15px;
+
+    color: #e2e8f0;
+    background: #1e293b;
+
+    border: 1px solid #334155;
+    border-radius: 10px;
+
+    line-height: 1.6;
+}
+
+.interview-question-list li:last-child {
+    margin-bottom: 0;
+}
+
+.interview-question-list li::marker {
+    color: #38bdf8;
+    font-weight: 700;
+}
+
+
+/* Empty State */
+
+.interview-empty-message {
+    padding: 16px;
+
+    color: #94a3b8;
+    background: #1e293b;
+
+    border: 1px dashed #475569;
+    border-radius: 10px;
+}
+
+
+/* Tablet */
+
+@media (max-width: 900px) {
+
+    .interview-question-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .interview-question-card:last-child {
+        grid-column: auto;
+    }
+}
+
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+    .interview-questions-section {
+        padding: 24px 18px;
+        border-radius: 16px;
+    }
+
+    .interview-questions-heading h3 {
+        font-size: 26px;
+    }
+
+    .interview-question-card {
+        padding: 20px 16px;
+    }
+
+    .interview-card-heading {
+        gap: 12px;
+    }
+
+    .interview-card-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+    }
+
+    .interview-card-heading h4 {
+        font-size: 19px;
+    }
+
+    .interview-question-list {
+        padding-left: 20px;
+    }
+
+    .interview-question-list li {
+        padding: 12px;
+    }
+}

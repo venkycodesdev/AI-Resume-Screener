@@ -338,6 +338,193 @@
 
             </section>
 
+            <!-- ======================================
+                SAVED INTERVIEW QUESTIONS
+            ======================================= -->
+
+            {% if interview_questions %}
+
+            <section class="analysis-detail-card">
+
+                <div class="interview-questions-heading">
+
+                    <p class="section-tag">
+                        INTERVIEW PREPARATION
+                    </p>
+
+                    <h2>
+                        AI-Generated Interview Questions
+                    </h2>
+
+                    <p>
+                        Practice these saved questions based on
+                        this resume analysis and job requirements.
+                    </p>
+
+                </div>
+
+
+                <div class="interview-question-grid">
+
+
+                    <!-- Technical Questions -->
+
+                    <div class="interview-question-card">
+
+                        <div class="interview-card-heading">
+
+                            <span class="interview-card-icon">
+                                💻
+                            </span>
+
+                            <div>
+
+                                <h4>
+                                    Technical Questions
+                                </h4>
+
+                                <p>
+                                    Questions based on matching
+                                    technical skills.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {% if interview_questions.technical_questions %}
+
+                            <ol class="interview-question-list">
+
+                                {% for question in interview_questions.technical_questions %}
+
+                                    <li>
+                                        {{ question }}
+                                    </li>
+
+                                {% endfor %}
+
+                            </ol>
+
+                        {% else %}
+
+                            <p class="interview-empty-message">
+                                No technical questions were saved.
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- Resume-Based Questions -->
+
+                    <div class="interview-question-card">
+
+                        <div class="interview-card-heading">
+
+                            <span class="interview-card-icon">
+                                📄
+                            </span>
+
+                            <div>
+
+                                <h4>
+                                    Resume-Based Questions
+                                </h4>
+
+                                <p>
+                                    Questions based on skills
+                                    detected in the resume.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {% if interview_questions.resume_questions %}
+
+                            <ol class="interview-question-list">
+
+                                {% for question in interview_questions.resume_questions %}
+
+                                    <li>
+                                        {{ question }}
+                                    </li>
+
+                                {% endfor %}
+
+                            </ol>
+
+                        {% else %}
+
+                            <p class="interview-empty-message">
+                                No resume-based questions were saved.
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- Job-Focused Questions -->
+
+                    <div class="interview-question-card">
+
+                        <div class="interview-card-heading">
+
+                            <span class="interview-card-icon">
+                                🎯
+                            </span>
+
+                            <div>
+
+                                <h4>
+                                    Job-Focused Questions
+                                </h4>
+
+                                <p>
+                                    Questions based on missing or
+                                    job-required skills.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {% if interview_questions.job_questions %}
+
+                            <ol class="interview-question-list">
+
+                                {% for question in interview_questions.job_questions %}
+
+                                    <li>
+                                        {{ question }}
+                                    </li>
+
+                                {% endfor %}
+
+                            </ol>
+
+                        {% else %}
+
+                            <p class="interview-empty-message">
+                                No job-focused questions were saved.
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            {% endif %}
+
 
             <!-- ======================================
                 JOB DESCRIPTION

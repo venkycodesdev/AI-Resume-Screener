@@ -1545,9 +1545,184 @@
 
         </div>
 
+        </div>
+
+</div>
+
+
+<!-- ==========================================
+     STEP 18.5 - INTERVIEW QUESTIONS
+=========================================== -->
+
+{% if interview_questions %}
+
+<div class="interview-questions-section">
+
+    <div class="interview-questions-heading">
+
+        <p class="section-tag">
+            INTERVIEW PREPARATION
+        </p>
+
+        <h3>
+            AI-Generated Interview Questions
+        </h3>
+
+        <p>
+            Practice these personalized questions based on your
+            resume skills and the selected job requirements.
+        </p>
+
+    </div>
+
+
+    <div class="interview-question-grid">
+
+
+        <!-- Technical Questions -->
+
+        <div class="interview-question-card">
+
+            <div class="interview-card-heading">
+
+                <span class="interview-card-icon">
+                    💻
+                </span>
+
+                <div>
+                    <h4>Technical Questions</h4>
+
+                    <p>
+                        Questions based on your matching technical skills.
+                    </p>
+                </div>
+
+            </div>
+
+
+            {% if interview_questions.technical_questions %}
+
+                <ol class="interview-question-list">
+
+                    {% for question in interview_questions.technical_questions %}
+
+                        <li>
+                            {{ question }}
+                        </li>
+
+                    {% endfor %}
+
+                </ol>
+
+            {% else %}
+
+                <p class="interview-empty-message">
+                    No technical questions generated.
+                </p>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- Resume-Based Questions -->
+
+        <div class="interview-question-card">
+
+            <div class="interview-card-heading">
+
+                <span class="interview-card-icon">
+                    📄
+                </span>
+
+                <div>
+                    <h4>Resume-Based Questions</h4>
+
+                    <p>
+                        Questions based on skills detected in your resume.
+                    </p>
+                </div>
+
+            </div>
+
+
+            {% if interview_questions.resume_questions %}
+
+                <ol class="interview-question-list">
+
+                    {% for question in interview_questions.resume_questions %}
+
+                        <li>
+                            {{ question }}
+                        </li>
+
+                    {% endfor %}
+
+                </ol>
+
+            {% else %}
+
+                <p class="interview-empty-message">
+                    No resume-based questions generated.
+                </p>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- Job-Focused Questions -->
+
+        <div class="interview-question-card">
+
+            <div class="interview-card-heading">
+
+                <span class="interview-card-icon">
+                    🎯
+                </span>
+
+                <div>
+                    <h4>Job-Focused Questions</h4>
+
+                    <p>
+                        Questions based on skills you should prepare
+                        before the interview.
+                    </p>
+                </div>
+
+            </div>
+
+
+            {% if interview_questions.job_questions %}
+
+                <ol class="interview-question-list">
+
+                    {% for question in interview_questions.job_questions %}
+
+                        <li>
+                            {{ question }}
+                        </li>
+
+                    {% endfor %}
+
+                </ol>
+
+            {% else %}
+
+                <p class="interview-empty-message">
+                    No job-focused questions generated.
+                </p>
+
+            {% endif %}
+
+        </div>
+
     </div>
 
 </div>
+
+{% endif %}
+
 
 <!-- Download Analysis Report -->
 <div class="download-report-section">
@@ -1679,6 +1854,26 @@
             value="{{ suggestions | tojson | forceescape }}"
         >
 
+        {% set saved_interview_questions = interview_questions | default({}) %}
+
+<input
+    type="hidden"
+    name="technical_questions"
+    value="{{ saved_interview_questions.get('technical_questions', []) | tojson | forceescape }}"
+>
+
+<input
+    type="hidden"
+    name="resume_questions"
+    value="{{ saved_interview_questions.get('resume_questions', []) | tojson | forceescape }}"
+>
+
+<input
+    type="hidden"
+    name="job_questions"
+    value="{{ saved_interview_questions.get('job_questions', []) | tojson | forceescape }}"
+>
+
 
         <button
             type="submit"
@@ -1709,16 +1904,6 @@
                         </p>
 
                     </div>
-
-                    <h3>Resume Text Preview</h3>
-
-<p>
-    This is the text extracted from your uploaded
-    resume. It is used for skill matching and resume
-    analysis.
-</p>
-
-</div>
 
 <div class="keyword-highlight-card">
 

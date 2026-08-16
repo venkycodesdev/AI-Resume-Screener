@@ -134,21 +134,70 @@ class User(UserMixin, db.Model):
 class Analysis(db.Model):
     """Store resume analysis history for each logged-in user."""
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
         nullable=False,
         index=True,
     )
-    resume_filename = db.Column(db.String(255), nullable=False)
-    analysis_type = db.Column(db.String(50), nullable=False, default="single")
-    job_description = db.Column(db.Text, nullable=False)
-    match_score = db.Column(db.Integer, nullable=False, default=0)
-    detected_skills = db.Column(db.Text, nullable=False, default="[]")
-    matching_skills = db.Column(db.Text, nullable=False, default="[]")
-    missing_skills = db.Column(db.Text, nullable=False, default="[]")
-    candidate_rank = db.Column(db.Integer, nullable=True)
+
+    resume_filename = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    analysis_type = db.Column(
+        db.String(50),
+        nullable=False,
+        default="single",
+    )
+
+    job_description = db.Column(
+        db.Text,
+        nullable=False,
+    )
+
+    match_score = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0,
+    )
+
+    detected_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]",
+    )
+
+    matching_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]",
+    )
+
+    missing_skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="[]",
+    )
+
+    candidate_rank = db.Column(
+        db.Integer,
+        nullable=True,
+    )
+
+    # STEP 18.7 - Saved interview questions
+    interview_questions = db.Column(
+        db.Text,
+        nullable=False,
+        default="{}",
+    )
+
     created_at = db.Column(
         db.DateTime,
         nullable=False,
@@ -848,6 +897,103 @@ def generate_final_recommendation(
         "strongest_match": strongest_match,
         "estimated_score": estimated_score,
     }
+    
+    # --------------------------------------------------
+# STEP 18.3 - INTERVIEW QUESTION GENERATOR
+# --------------------------------------------------
+
+
+def generate_interview_questions(
+    resume_skills,
+    matching_skills,
+    missing_skills,
+):
+    """
+    Generate interview questions based on:
+    - skills detected in the resume
+    - matching job skills
+    - missing job skills
+    """
+
+    technical_questions = []
+    resume_questions = []
+    job_questions = []
+
+    # --------------------------------------------------
+    # TECHNICAL QUESTIONS
+    # --------------------------------------------------
+
+    for skill in matching_skills[:5]:
+
+        technical_questions.append(
+            f"Explain your practical experience with {skill}."
+        )
+
+        technical_questions.append(
+            f"What important concepts should a developer know in {skill}?"
+        )
+
+    # --------------------------------------------------
+    # RESUME-BASED QUESTIONS
+    # --------------------------------------------------
+
+    for skill in resume_skills[:5]:
+
+        resume_questions.append(
+            f"Describe a project where you used {skill}."
+        )
+
+    resume_questions.extend(
+        [
+            "What was the most challenging problem you solved in a project?",
+            "Which project on your resume are you most confident explaining?",
+            "How do you test and debug your applications?",
+        ]
+    )
+
+    # --------------------------------------------------
+    # JOB-FOCUSED QUESTIONS
+    # --------------------------------------------------
+
+    for skill in missing_skills[:5]:
+
+        job_questions.append(
+            f"This role requires {skill}. "
+            f"What do you currently know about it?"
+        )
+
+        job_questions.append(
+            f"How would you improve your knowledge of {skill} "
+            f"if you were selected for this role?"
+        )
+
+    # --------------------------------------------------
+    # FALLBACK QUESTIONS
+    # --------------------------------------------------
+
+    if not technical_questions:
+        technical_questions = [
+            "Explain the strongest technical skill listed on your resume.",
+            "How do you approach solving a new programming problem?",
+        ]
+
+    if not resume_questions:
+        resume_questions = [
+            "Tell me about one technical project you have completed.",
+            "What was your contribution to that project?",
+        ]
+
+    if not job_questions:
+        job_questions = [
+            "Why are you interested in this role?",
+            "Which of your skills are most relevant to this position?",
+        ]
+
+    return {
+        "technical_questions": technical_questions[:10],
+        "resume_questions": resume_questions[:8],
+        "job_questions": job_questions[:10],
+    }
 
 
 def safe_json_list(value):
@@ -1341,7 +1487,7 @@ def build_analysis_pdf(report_data):
             section_style,
         )
     )
-
+    
     story.append(
         Paragraph(
             f"<b>{escape(report_data['final_title'])}</b>",
@@ -1369,6 +1515,101 @@ def build_analysis_pdf(report_data):
             recommendation_style,
         )
     )
+
+    # --------------------------------------------------
+    # STEP 18.8 - INTERVIEW QUESTIONS IN PDF
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "AI-Generated Interview Questions",
+            section_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "<b>Technical Questions</b>",
+            normal_style,
+        )
+    )
+
+    if report_data["technical_questions"]:
+        for number, question in enumerate(
+            report_data["technical_questions"],
+            start=1,
+        ):
+            story.append(
+                Paragraph(
+                    f"{number}. {escape(question)}",
+                    normal_style,
+                )
+            )
+    else:
+        story.append(
+            Paragraph(
+                "No technical questions were generated.",
+                normal_style,
+            )
+        )
+
+    story.append(Spacer(1, 8))
+
+    story.append(
+        Paragraph(
+            "<b>Resume-Based Questions</b>",
+            normal_style,
+        )
+    )
+
+    if report_data["resume_questions"]:
+        for number, question in enumerate(
+            report_data["resume_questions"],
+            start=1,
+        ):
+            story.append(
+                Paragraph(
+                    f"{number}. {escape(question)}",
+                    normal_style,
+                )
+            )
+    else:
+        story.append(
+            Paragraph(
+                "No resume-based questions were generated.",
+                normal_style,
+            )
+        )
+
+    story.append(Spacer(1, 8))
+
+    story.append(
+        Paragraph(
+            "<b>Job-Focused Questions</b>",
+            normal_style,
+        )
+    )
+
+    if report_data["job_questions"]:
+        for number, question in enumerate(
+            report_data["job_questions"],
+            start=1,
+        ):
+            story.append(
+                Paragraph(
+                    f"{number}. {escape(question)}",
+                    normal_style,
+                )
+            )
+    else:
+        story.append(
+            Paragraph(
+                "No job-focused questions were generated.",
+                normal_style,
+            )
+        )
+
+    story.append(Spacer(1, 10))
 
     story.append(
         Paragraph(
@@ -1536,26 +1777,46 @@ def history():
 @login_required
 def analysis_details(analysis_id):
     analysis = Analysis.query.filter_by(
-        id=analysis_id, user_id=current_user.id
+        id=analysis_id,
+        user_id=current_user.id,
     ).first_or_404()
+
     try:
-        matching_skills = json.loads(analysis.matching_skills or "[]")
+        matching_skills = json.loads(
+            analysis.matching_skills or "[]"
+        )
     except (json.JSONDecodeError, TypeError):
         matching_skills = []
+
     try:
-        missing_skills = json.loads(analysis.missing_skills or "[]")
+        missing_skills = json.loads(
+            analysis.missing_skills or "[]"
+        )
     except (json.JSONDecodeError, TypeError):
         missing_skills = []
+
     try:
-        detected_skills = json.loads(analysis.detected_skills or "[]")
+        detected_skills = json.loads(
+            analysis.detected_skills or "[]"
+        )
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
+
+    # STEP 18.7D - Load saved interview questions
+    try:
+        interview_questions = json.loads(
+            analysis.interview_questions or "{}"
+        )
+    except (json.JSONDecodeError, TypeError):
+        interview_questions = {}
+
     return render_template(
         "analysis_details.html",
         analysis=analysis,
         matching_skills=matching_skills,
         missing_skills=missing_skills,
         detected_skills=detected_skills,
+        interview_questions=interview_questions,
     )
 
 
@@ -1832,6 +2093,10 @@ def upload_resume():
     final_recommendation = generate_final_recommendation(
         resume_score, matching_skills, missing_skills
     )
+    interview_questions = generate_interview_questions(
+        resume_skills, matching_skills, missing_skills
+    )
+
     highlighted_resume_text = highlight_keywords(text, job_skills)
     highlighted_job_description = highlight_keywords(
         job_description, job_skills
@@ -1848,6 +2113,9 @@ def upload_resume():
             matching_skills=json.dumps(matching_skills),
             missing_skills=json.dumps(missing_skills),
             candidate_rank=None,
+
+            # STEP 18.7 - Save interview questions
+            interview_questions=json.dumps(interview_questions),
         ))
         db.session.commit()
     except Exception:
@@ -1872,6 +2140,7 @@ def upload_resume():
         resume_strength=resume_strength,
         skill_gap_analysis=skill_gap_analysis,
         final_recommendation=final_recommendation,
+        interview_questions=interview_questions,
         resume_info=resume_info,
     )
 
@@ -1903,7 +2172,17 @@ def download_report():
         "improvement_areas": safe_json_list(
             request.form.get("improvement_areas")
         ),
-        "suggestions": safe_json_list(request.form.get("suggestions")),
+        "suggestions": safe_json_list(
+            request.form.get("suggestions")),
+        
+        "technical_questions": safe_json_list(
+            request.form.get("technical_questions")),
+
+        "resume_questions": safe_json_list(
+            request.form.get("resume_questions")),
+
+        "job_questions": safe_json_list(
+            request.form.get("job_questions")),
     }
     pdf_buffer = build_analysis_pdf(report_data)
     original_name = os.path.splitext(report_data["filename"])[0]
