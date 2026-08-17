@@ -1180,6 +1180,161 @@
 
 </div>
 
+
+<!-- ==========================================
+     STEP 19.3 - SCORE BREAKDOWN
+=========================================== -->
+
+{% if score_breakdown %}
+
+<div class="score-breakdown-section">
+
+    <div class="score-breakdown-heading">
+
+        <p class="section-tag">
+            SCORE BREAKDOWN
+        </p>
+
+        <h3>
+            Detailed Resume Performance
+        </h3>
+
+        <p>
+            See how your resume performs across important
+            areas of the job application.
+        </p>
+
+    </div>
+
+
+    <div class="score-breakdown-grid">
+
+
+        <div class="score-breakdown-card">
+
+            <div class="breakdown-card-top">
+
+                <span class="breakdown-icon">
+                    💻
+                </span>
+
+                <span class="breakdown-value">
+                    {{ score_breakdown.skills }}%
+                </span>
+
+            </div>
+
+            <h4>
+                Skills Match
+            </h4>
+
+            <div class="breakdown-progress">
+
+                <div
+                    class="breakdown-progress-fill"
+                    style="width: {{ score_breakdown.skills }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <div class="score-breakdown-card">
+
+            <div class="breakdown-card-top">
+
+                <span class="breakdown-icon">
+                    💼
+                </span>
+
+                <span class="breakdown-value">
+                    {{ score_breakdown.experience }}%
+                </span>
+
+            </div>
+
+            <h4>
+                Experience Relevance
+            </h4>
+
+            <div class="breakdown-progress">
+
+                <div
+                    class="breakdown-progress-fill"
+                    style="width: {{ score_breakdown.experience }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <div class="score-breakdown-card">
+
+            <div class="breakdown-card-top">
+
+                <span class="breakdown-icon">
+                    🎓
+                </span>
+
+                <span class="breakdown-value">
+                    {{ score_breakdown.education }}%
+                </span>
+
+            </div>
+
+            <h4>
+                Education Match
+            </h4>
+
+            <div class="breakdown-progress">
+
+                <div
+                    class="breakdown-progress-fill"
+                    style="width: {{ score_breakdown.education }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <div class="score-breakdown-card">
+
+            <div class="breakdown-card-top">
+
+                <span class="breakdown-icon">
+                    🚀
+                </span>
+
+                <span class="breakdown-value">
+                    {{ score_breakdown.projects }}%
+                </span>
+
+            </div>
+
+            <h4>
+                Projects Relevance
+            </h4>
+
+            <div class="breakdown-progress">
+
+                <div
+                    class="breakdown-progress-fill"
+                    style="width: {{ score_breakdown.projects }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
                 <!-- ATS Resume Rating -->
 <div class="ats-rating-section {{ ats_rating.class_name }}">
 
@@ -1333,6 +1488,73 @@
     </div>
 
 </div>
+
+<!-- ==========================================
+     STEP 19.5 - TARGETED RECOMMENDATIONS
+=========================================== -->
+
+{% if targeted_recommendations %}
+
+<div class="targeted-recommendations-section">
+
+    <div class="targeted-recommendations-heading">
+
+        <p class="section-tag">
+            TARGETED IMPROVEMENT
+        </p>
+
+        <h3>
+            Personalized Improvement Recommendations
+        </h3>
+
+        <p>
+            These recommendations are generated from your
+            skills, experience, education and project scores.
+        </p>
+
+    </div>
+
+
+    <div class="targeted-recommendations-grid">
+
+        {% for item in targeted_recommendations %}
+
+        <div class="targeted-recommendation-card">
+
+            <div class="targeted-card-header">
+
+                <span class="targeted-card-icon">
+                    {{ item.icon }}
+                </span>
+
+                <div>
+
+                    <h4>
+                        {{ item.category }}
+                    </h4>
+
+                    <span class="targeted-card-score">
+                        {{ item.score }}%
+                    </span>
+
+                </div>
+
+            </div>
+
+            <p>
+                {{ item.message }}
+            </p>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endif %}
+
 
                 <!-- AI Resume Suggestions -->
 <div class="suggestions-section">
@@ -1551,7 +1773,7 @@
 
 
 <!-- ==========================================
-     STEP 18.5 - INTERVIEW QUESTIONS
+    STEP 18.5 - INTERVIEW QUESTIONS
 =========================================== -->
 
 {% if interview_questions %}
@@ -1787,6 +2009,30 @@
             name="resume_score"
             value="{{ resume_score }}"
         >
+
+        <input
+    type="hidden"
+    name="skills_score"
+    value="{{ score_breakdown.skills }}"
+>
+
+<input
+    type="hidden"
+    name="experience_score"
+    value="{{ score_breakdown.experience }}"
+>
+
+<input
+    type="hidden"
+    name="education_score"
+    value="{{ score_breakdown.education }}"
+>
+
+<input
+    type="hidden"
+    name="projects_score"
+    value="{{ score_breakdown.projects }}"
+>
 
         <input
             type="hidden"

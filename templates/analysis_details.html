@@ -339,6 +339,168 @@
             </section>
 
             <!-- ======================================
+    STEP 19.6E - SAVED SCORE BREAKDOWN
+======================================= -->
+
+{% if score_breakdown %}
+
+<section class="analysis-detail-card">
+
+    <div class="score-breakdown-heading">
+
+        <p class="section-tag">
+            SCORE BREAKDOWN
+        </p>
+
+        <h2>
+            Detailed Resume Performance
+        </h2>
+
+        <p>
+            Review the saved performance scores from
+            this resume analysis.
+        </p>
+
+    </div>
+
+
+    <div class="score-breakdown-grid">
+
+
+        <!-- Skills Match -->
+
+        <div class="score-breakdown-card">
+
+            <div class="score-breakdown-card-top">
+
+                <span class="score-breakdown-icon">
+                    💻
+                </span>
+
+                <strong class="score-breakdown-value">
+                    {{ score_breakdown.get('skills', 0) }}%
+                </strong>
+
+            </div>
+
+            <h3>
+                Skills Match
+            </h3>
+
+            <div class="score-breakdown-progress">
+
+                <div
+                    class="score-breakdown-progress-fill"
+                    style="width: {{ score_breakdown.get('skills', 0) }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Experience Relevance -->
+
+        <div class="score-breakdown-card">
+
+            <div class="score-breakdown-card-top">
+
+                <span class="score-breakdown-icon">
+                    💼
+                </span>
+
+                <strong class="score-breakdown-value">
+                    {{ score_breakdown.get('experience', 0) }}%
+                </strong>
+
+            </div>
+
+            <h3>
+                Experience Relevance
+            </h3>
+
+            <div class="score-breakdown-progress">
+
+                <div
+                    class="score-breakdown-progress-fill"
+                    style="width: {{ score_breakdown.get('experience', 0) }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Education Match -->
+
+        <div class="score-breakdown-card">
+
+            <div class="score-breakdown-card-top">
+
+                <span class="score-breakdown-icon">
+                    🎓
+                </span>
+
+                <strong class="score-breakdown-value">
+                    {{ score_breakdown.get('education', 0) }}%
+                </strong>
+
+            </div>
+
+            <h3>
+                Education Match
+            </h3>
+
+            <div class="score-breakdown-progress">
+
+                <div
+                    class="score-breakdown-progress-fill"
+                    style="width: {{ score_breakdown.get('education', 0) }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Projects Relevance -->
+
+        <div class="score-breakdown-card">
+
+            <div class="score-breakdown-card-top">
+
+                <span class="score-breakdown-icon">
+                    🚀
+                </span>
+
+                <strong class="score-breakdown-value">
+                    {{ score_breakdown.get('projects', 0) }}%
+                </strong>
+
+            </div>
+
+            <h3>
+                Projects Relevance
+            </h3>
+
+            <div class="score-breakdown-progress">
+
+                <div
+                    class="score-breakdown-progress-fill"
+                    style="width: {{ score_breakdown.get('projects', 0) }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endif %}
+
+            <!-- ======================================
                 SAVED INTERVIEW QUESTIONS
             ======================================= -->
 

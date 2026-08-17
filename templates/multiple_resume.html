@@ -221,6 +221,154 @@
 
                 </div>
 
+                <!-- ==========================================
+     STEP 19.8 - 4 CATEGORY SCORE BREAKDOWN
+=========================================== -->
+
+{% if candidate.score_breakdown %}
+
+<div class="candidate-score-breakdown">
+
+    <h4 class="candidate-breakdown-title">
+        Detailed Resume Performance
+    </h4>
+
+    <div class="candidate-breakdown-grid">
+
+
+        <!-- Skills -->
+
+        <div class="candidate-breakdown-card">
+
+            <div class="candidate-breakdown-icon">
+                💻
+            </div>
+
+            <div class="candidate-breakdown-info">
+
+                <span>
+                    Skills Match
+                </span>
+
+                <strong>
+                    {{ candidate.score_breakdown.skills }}%
+                </strong>
+
+            </div>
+
+            <div class="candidate-breakdown-progress">
+
+                <div
+                    class="candidate-breakdown-progress-fill"
+                    style="width: {{ candidate.score_breakdown.skills }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Experience -->
+
+        <div class="candidate-breakdown-card">
+
+            <div class="candidate-breakdown-icon">
+                💼
+            </div>
+
+            <div class="candidate-breakdown-info">
+
+                <span>
+                    Experience Relevance
+                </span>
+
+                <strong>
+                    {{ candidate.score_breakdown.experience }}%
+                </strong>
+
+            </div>
+
+            <div class="candidate-breakdown-progress">
+
+                <div
+                    class="candidate-breakdown-progress-fill"
+                    style="width: {{ candidate.score_breakdown.experience }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Education -->
+
+        <div class="candidate-breakdown-card">
+
+            <div class="candidate-breakdown-icon">
+                🎓
+            </div>
+
+            <div class="candidate-breakdown-info">
+
+                <span>
+                    Education Match
+                </span>
+
+                <strong>
+                    {{ candidate.score_breakdown.education }}%
+                </strong>
+
+            </div>
+
+            <div class="candidate-breakdown-progress">
+
+                <div
+                    class="candidate-breakdown-progress-fill"
+                    style="width: {{ candidate.score_breakdown.education }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Projects -->
+
+        <div class="candidate-breakdown-card">
+
+            <div class="candidate-breakdown-icon">
+                🚀
+            </div>
+
+            <div class="candidate-breakdown-info">
+
+                <span>
+                    Projects Relevance
+                </span>
+
+                <strong>
+                    {{ candidate.score_breakdown.projects }}%
+                </strong>
+
+            </div>
+
+            <div class="candidate-breakdown-progress">
+
+                <div
+                    class="candidate-breakdown-progress-fill"
+                    style="width: {{ candidate.score_breakdown.projects }}%;"
+                ></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
 
                 <div class="candidate-skills-section">
 
@@ -309,8 +457,8 @@
         class="multi-resume-form"
     >
 
-                    <!-- ==========================================
-     STEP 17.6 - JOB DESCRIPTION
+<!-- ==========================================
+STEP 17.6 - JOB DESCRIPTION
 =========================================== -->
 
 <div class="multi-form-group">

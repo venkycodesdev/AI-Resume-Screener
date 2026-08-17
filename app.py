@@ -197,6 +197,13 @@ class Analysis(db.Model):
         nullable=False,
         default="{}",
     )
+    
+    # STEP 19.6 - Save score breakdown in history
+    score_breakdown = db.Column(
+        db.Text,
+        nullable=False,
+        default="{}",
+    )
 
     created_at = db.Column(
         db.DateTime,
@@ -740,6 +747,330 @@ def calculate_resume_strength(
         "strong_areas": strong_areas,
         "improvement_areas": improvement_areas,
     }
+
+
+# ==========================================
+# STEP 19.2 - RESUME SCORE BREAKDOWN
+# ==========================================
+
+def calculate_score_breakdown(
+    resume_text,
+    job_description,
+    matching_skills,
+    job_skills,
+):
+    """
+    Calculate separate scores for:
+    1. Skills Match
+    2. Experience Relevance
+    3. Education Match
+    4. Projects Relevance
+    """
+
+    resume_lower = (resume_text or "").lower()
+    job_lower = (job_description or "").lower()
+
+    # --------------------------------------
+    # 1. SKILLS MATCH SCORE
+    # --------------------------------------
+
+    if job_skills:
+        skills_score = round(
+            len(matching_skills) / len(job_skills) * 100
+        )
+    else:
+        skills_score = 0
+
+    skills_score = max(0, min(100, skills_score))
+
+    # --------------------------------------
+    # 2. EXPERIENCE RELEVANCE SCORE
+    # --------------------------------------
+
+    experience_keywords = [
+        "experience",
+        "internship",
+        "intern",
+        "worked",
+        "developed",
+        "implemented",
+        "built",
+        "designed",
+        "deployed",
+        "professional",
+    ]
+
+    resume_experience_count = sum(
+        1
+        for keyword in experience_keywords
+        if keyword in resume_lower
+    )
+
+    job_experience_count = sum(
+        1
+        for keyword in experience_keywords
+        if keyword in job_lower
+    )
+
+    if job_experience_count > 0:
+        experience_score = round(
+            min(
+                resume_experience_count /
+                job_experience_count,
+                1,
+            ) * 100
+        )
+    else:
+        experience_score = min(
+            resume_experience_count * 20,
+            100,
+        )
+
+# --------------------------------------
+    # 3. EDUCATION MATCH SCORE
+    # --------------------------------------
+
+    education_keywords = [
+        "b.tech",
+        "btech",
+        "bachelor",
+        "degree",
+        "engineering",
+        "computer science",
+        "artificial intelligence",
+        "machine learning",
+        "m.tech",
+        "master",
+    ]
+
+    required_education = [
+        keyword
+        for keyword in education_keywords
+        if keyword in job_lower
+    ]
+
+    resume_education = [
+        keyword
+        for keyword in education_keywords
+        if keyword in resume_lower
+    ]
+
+    if required_education:
+
+        matched_education = [
+            keyword
+            for keyword in required_education
+            if keyword in resume_lower
+        ]
+
+        education_score = round(
+            len(matched_education) /
+            len(required_education) *
+            100
+        )
+
+    elif resume_education:
+
+        education_score = 100
+
+    else:
+
+        education_score = 0
+
+    # --------------------------------------
+    # 4. PROJECTS RELEVANCE SCORE
+    # --------------------------------------
+
+    project_keywords = [
+        "project",
+        "projects",
+        "developed",
+        "built",
+        "created",
+        "implemented",
+        "application",
+        "system",
+        "website",
+        "model",
+    ]
+
+    resume_project_count = sum(
+        1
+        for keyword in project_keywords
+        if keyword in resume_lower
+    )
+
+    job_project_count = sum(
+        1
+        for keyword in project_keywords
+        if keyword in job_lower
+    )
+
+    if job_project_count > 0:
+
+        projects_score = round(
+            min(
+                resume_project_count /
+                job_project_count,
+                1,
+            ) * 100
+        )
+
+    else:
+
+        projects_score = min(
+            resume_project_count * 15,
+            100,
+        )
+
+# --------------------------------------
+# FINAL BREAKDOWN
+# --------------------------------------
+
+    return {
+        "skills": max(0, min(100, skills_score)),
+        "experience": max(0, min(100, experience_score)),
+        "education": max(0, min(100, education_score)),
+        "projects": max(0, min(100, projects_score)),
+    }
+
+
+# ==================================================
+# STEP 19.5 - TARGETED IMPROVEMENT RECOMMENDATIONS
+# ==================================================
+
+def generate_targeted_recommendations(
+    score_breakdown,
+    missing_skills,
+):
+    """
+    Generate focused improvement recommendations
+    using the four resume score categories.
+    """
+
+    recommendations = []
+
+    skills_score = score_breakdown.get("skills", 0)
+    experience_score = score_breakdown.get("experience", 0)
+    education_score = score_breakdown.get("education", 0)
+    projects_score = score_breakdown.get("projects", 0)
+
+    # 1. SKILLS
+    if skills_score < 60:
+        if missing_skills:
+            priority_skills = ", ".join(missing_skills[:5])
+            skills_message = (
+                "Your skills match needs improvement. "
+                f"Focus on learning or demonstrating: {priority_skills}."
+            )
+        else:
+            skills_message = (
+                "Strengthen the technical skills section and clearly "
+                "mention job-relevant tools and technologies."
+            )
+
+    elif skills_score < 80:
+        skills_message = (
+            "Your skills match is good, but you can improve it by "
+            "adding evidence of the remaining job-relevant skills."
+        )
+
+    else:
+        skills_message = (
+            "Your technical skills are strongly aligned with the job "
+            "requirements. Keep them clearly visible in your resume."
+        )
+
+    recommendations.append({
+        "category": "Skills",
+        "icon": "💻",
+        "score": skills_score,
+        "message": skills_message,
+    })
+
+    # 2. EXPERIENCE
+    if experience_score < 50:
+        experience_message = (
+            "Add stronger experience evidence through internships, "
+            "practical work, freelancing, leadership activities or "
+            "relevant project responsibilities."
+        )
+
+    elif experience_score < 80:
+        experience_message = (
+            "Improve your experience section by describing your "
+            "responsibilities, technologies used and measurable results."
+        )
+
+    else:
+        experience_message = (
+            "Your experience section shows good relevance. Keep "
+            "achievements specific and quantify results where possible."
+        )
+
+    recommendations.append({
+        "category": "Experience",
+        "icon": "💼",
+        "score": experience_score,
+        "message": experience_message,
+    })
+
+    # 3. EDUCATION
+    if education_score < 50:
+        education_message = (
+            "Make your education details clearer. Mention your degree, "
+            "specialization, institution and relevant coursework."
+        )
+
+    elif education_score < 80:
+        education_message = (
+            "Your education is partly aligned. Highlight relevant "
+            "coursework, certifications or academic work."
+        )
+
+    else:
+        education_message = (
+            "Your education information is well aligned. Keep the most "
+            "job-relevant academic details easy to identify."
+        )
+
+    recommendations.append({
+        "category": "Education",
+        "icon": "🎓",
+        "score": education_score,
+        "message": education_message,
+    })
+
+    # 4. PROJECTS
+    if projects_score < 50:
+        projects_message = (
+            "Add more relevant projects that demonstrate the skills "
+            "required for this role. Mention the problem, technologies "
+            "and outcome."
+        )
+
+    elif projects_score < 80:
+        projects_message = (
+            "Your projects provide useful evidence, but they can be "
+            "stronger. Add measurable outcomes and explain your "
+            "individual contribution."
+        )
+
+    else:
+        projects_message = (
+            "Your projects show strong relevance. Keep the most "
+            "important projects prominent and include technologies, "
+            "responsibilities and results."
+        )
+
+    recommendations.append({
+        "category": "Projects",
+        "icon": "🚀",
+        "score": projects_score,
+        "message": projects_message,
+    })
+
+    return recommendations
 
 
 def calculate_skill_gap_analysis(
@@ -1377,6 +1708,129 @@ def build_analysis_pdf(report_data):
     )
 
     story.append(score_table)
+    
+    # --------------------------------------------------
+    # STEP 19.7 - SCORE BREAKDOWN IN PDF
+    # --------------------------------------------------
+
+    story.append(
+        Paragraph(
+            "Detailed Resume Performance",
+            section_style,
+        )
+    )
+
+    score_breakdown_data = [
+        [
+            Paragraph(
+                "<b>Category</b>",
+                normal_style,
+            ),
+            Paragraph(
+                "<b>Score</b>",
+                normal_style,
+            ),
+        ],
+        [
+            Paragraph(
+                "Skills Match",
+                normal_style,
+            ),
+            Paragraph(
+                f"{report_data['skills_score']}%",
+                normal_style,
+            ),
+        ],
+        [
+            Paragraph(
+                "Experience Relevance",
+                normal_style,
+            ),
+            Paragraph(
+                f"{report_data['experience_score']}%",
+                normal_style,
+            ),
+        ],
+        [
+            Paragraph(
+                "Education Match",
+                normal_style,
+            ),
+            Paragraph(
+                f"{report_data['education_score']}%",
+                normal_style,
+            ),
+        ],
+        [
+            Paragraph(
+                "Projects Relevance",
+                normal_style,
+            ),
+            Paragraph(
+                f"{report_data['projects_score']}%",
+                normal_style,
+            ),
+        ],
+    ]
+
+    score_breakdown_table = Table(
+        score_breakdown_data,
+        colWidths=[
+            105 * mm,
+            52 * mm,
+        ],
+    )
+
+    score_breakdown_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.HexColor("#E0F2FE"),
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.HexColor("#CBD5E1"),
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE",
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8,
+            ),
+        ])
+    )
+
+    story.append(score_breakdown_table)
+    story.append(Spacer(1, 12))
 
     story.append(
         Paragraph(
@@ -1801,14 +2255,21 @@ def analysis_details(analysis_id):
         )
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
-
-    # STEP 18.7D - Load saved interview questions
+        
     try:
         interview_questions = json.loads(
             analysis.interview_questions or "{}"
         )
     except (json.JSONDecodeError, TypeError):
         interview_questions = {}
+
+    # STEP 19.6D - Load saved score breakdown
+    try:
+        score_breakdown = json.loads(
+            analysis.score_breakdown or "{}"
+        )
+    except (json.JSONDecodeError, TypeError):
+        score_breakdown = {}
 
     return render_template(
         "analysis_details.html",
@@ -1817,6 +2278,7 @@ def analysis_details(analysis_id):
         missing_skills=missing_skills,
         detected_skills=detected_skills,
         interview_questions=interview_questions,
+        score_breakdown=score_breakdown,
     )
 
 
@@ -1948,6 +2410,14 @@ def analyze_multiple_resumes():
         matching_skills = sorted(resume_skill_set & job_skill_set)
         missing_skills = sorted(job_skill_set - resume_skill_set)
         score = round(len(matching_skills) / len(job_skill_set) * 100)
+        
+                # STEP 19.8 - 4-category score breakdown
+        score_breakdown = calculate_score_breakdown(
+            text,
+            job_description,
+            matching_skills,
+            job_skills,
+        )
         candidates.append({
             "filename": filename,
             "file_type": extension.upper(),
@@ -1961,6 +2431,7 @@ def analyze_multiple_resumes():
             "matching_skills": matching_skills,
             "missing_skills": missing_skills,
             "match_score": score,
+            "score_breakdown": score_breakdown,
         })
 
     candidates.sort(key=lambda c: c["match_score"], reverse=True)
@@ -2091,10 +2562,27 @@ def upload_resume():
         resume_skills, job_skills
     )
     final_recommendation = generate_final_recommendation(
-        resume_score, matching_skills, missing_skills
+        resume_score,
+        matching_skills,
+        missing_skills,
     )
+
+    score_breakdown = calculate_score_breakdown(
+        text,
+        job_description,
+        matching_skills,
+        job_skills,
+    )
+    
+    targeted_recommendations = generate_targeted_recommendations(
+        score_breakdown,
+        missing_skills,
+    )
+
     interview_questions = generate_interview_questions(
-        resume_skills, matching_skills, missing_skills
+        resume_skills,
+        matching_skills,
+        missing_skills,
     )
 
     highlighted_resume_text = highlight_keywords(text, job_skills)
@@ -2116,6 +2604,7 @@ def upload_resume():
 
             # STEP 18.7 - Save interview questions
             interview_questions=json.dumps(interview_questions),
+            score_breakdown=json.dumps(score_breakdown),
         ))
         db.session.commit()
     except Exception:
@@ -2135,6 +2624,8 @@ def upload_resume():
         matching_skills=matching_skills,
         missing_skills=missing_skills,
         resume_score=resume_score,
+        score_breakdown=score_breakdown,
+        targeted_recommendations=targeted_recommendations,
         suggestions=suggestions,
         ats_rating=ats_rating,
         resume_strength=resume_strength,
@@ -2154,6 +2645,18 @@ def download_report():
         "file_size": request.form.get("file_size", "Unknown"),
         "word_count": request.form.get("word_count", "0"),
         "resume_score": request.form.get("resume_score", "0"),
+        "skills_score": int(
+            request.form.get("skills_score", 0)
+        ),
+        "experience_score": int(
+            request.form.get("experience_score", 0)
+        ),
+        "education_score": int(
+            request.form.get("education_score", 0)
+        ),
+        "projects_score": int(
+            request.form.get("projects_score", 0)
+        ),
         "ats_label": request.form.get("ats_label", "Not available"),
         "strength_score": request.form.get("strength_score", "0"),
         "strength_label": request.form.get("strength_label", "Not available"),
