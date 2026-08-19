@@ -104,6 +104,65 @@
 
 </nav>
 
+<!-- Global Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+
+    {% if messages %}
+
+        <div class="global-message-container">
+
+            {% for category, message in messages %}
+
+                <div
+                    class="upload-message
+                    {% if category == 'success' %}
+                        success-message
+                    {% else %}
+                        error-message
+                    {% endif %}"
+                    role="alert"
+                >
+
+                    <div class="message-icon">
+
+                        {% if category == "success" %}
+                            ✅
+                        {% elif category == "warning" %}
+                            ⚠️
+                        {% elif category == "info" %}
+                            ℹ️
+                        {% else %}
+                            ❌
+                        {% endif %}
+
+                    </div>
+
+                    <div class="message-content">
+
+                        {% if category == "success" %}
+                            <h3>Success</h3>
+                        {% elif category == "warning" %}
+                            <h3>Attention Required</h3>
+                        {% elif category == "info" %}
+                            <h3>Information</h3>
+                        {% else %}
+                            <h3>Request Failed</h3>
+                        {% endif %}
+
+                        <p>{{ message }}</p>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+{% endwith %}
+
 
     <!-- Hero Section -->
     <main id="home" class="hero-section">
@@ -1182,7 +1241,7 @@
 
 
 <!-- ==========================================
-     STEP 19.3 - SCORE BREAKDOWN
+    STEP 19.3 - SCORE BREAKDOWN
 =========================================== -->
 
 {% if score_breakdown %}
@@ -1490,7 +1549,7 @@
 </div>
 
 <!-- ==========================================
-     STEP 19.5 - TARGETED RECOMMENDATIONS
+    STEP 19.5 - TARGETED RECOMMENDATIONS
 =========================================== -->
 
 {% if targeted_recommendations %}
@@ -2221,6 +2280,7 @@
                     method="POST"
                     enctype="multipart/form-data"
                     class="upload-form"
+                    id="singleResumeForm"
                 >
 
                     <div class="form-group">
@@ -2300,8 +2360,17 @@
                     <button
                         type="submit"
                         class="upload-submit-button"
+                        id="singleAnalyzeButton"
                     >
-                        Upload &amp; Analyze Resume
+                        <span
+                            class="button-spinner"
+                            id="singleButtonSpinner"
+                            aria-hidden="true"
+                        ></span>
+
+                        <span id="singleButtonText">
+                            Upload &amp; Analyze Resume
+                        </span>
                     </button>
 
                 </form>
@@ -2619,6 +2688,54 @@
 
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const singleForm =
+            document.getElementById("singleResumeForm");
+
+        const analyzeButton =
+            document.getElementById("singleAnalyzeButton");
+
+        const buttonSpinner =
+            document.getElementById("singleButtonSpinner");
+
+        const buttonText =
+            document.getElementById("singleButtonText");
+
+        if (
+            !singleForm ||
+            !analyzeButton ||
+            !buttonSpinner ||
+            !buttonText
+        ) {
+            return;
+        }
+
+        let isSubmitting = false;
+
+        singleForm.addEventListener("submit", (event) => {
+            if (isSubmitting) {
+                event.preventDefault();
+                return;
+            }
+
+            isSubmitting = true;
+            analyzeButton.disabled = true;
+            analyzeButton.classList.add("is-loading");
+            buttonSpinner.setAttribute("aria-hidden", "false");
+            buttonText.textContent = "Analyzing Resume...";
+        });
+
+        window.addEventListener("pageshow", () => {
+            isSubmitting = false;
+            analyzeButton.disabled = false;
+            analyzeButton.classList.remove("is-loading");
+            buttonSpinner.setAttribute("aria-hidden", "true");
+            buttonText.textContent = "Upload & Analyze Resume";
+        });
+    });
+</script>
 
 </body>
 </html>

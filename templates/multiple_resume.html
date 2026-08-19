@@ -57,6 +57,65 @@
 
         <main class="multi-resume-main">
 
+            <!-- Global Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+
+    {% if messages %}
+
+        <div class="global-message-container">
+
+            {% for category, message in messages %}
+
+                <div
+                    class="upload-message
+                    {% if category == 'success' %}
+                        success-message
+                    {% else %}
+                        error-message
+                    {% endif %}"
+                    role="alert"
+                >
+
+                    <div class="message-icon">
+
+                        {% if category == "success" %}
+                            ✅
+                        {% elif category == "warning" %}
+                            ⚠️
+                        {% elif category == "info" %}
+                            ℹ️
+                        {% else %}
+                            ❌
+                        {% endif %}
+
+                    </div>
+
+                    <div class="message-content">
+
+                        {% if category == "success" %}
+                            <h3>Success</h3>
+                        {% elif category == "warning" %}
+                            <h3>Attention Required</h3>
+                        {% elif category == "info" %}
+                            <h3>Information</h3>
+                        {% else %}
+                            <h3>Request Failed</h3>
+                        {% endif %}
+
+                        <p>{{ message }}</p>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+{% endwith %}
+
             <!-- Heading -->
             <section class="multi-resume-heading">
 
@@ -221,9 +280,7 @@
 
                 </div>
 
-                <!-- ==========================================
-     STEP 19.8 - 4 CATEGORY SCORE BREAKDOWN
-=========================================== -->
+<!-- Four-category score breakdown -->
 
 {% if candidate.score_breakdown %}
 
@@ -451,15 +508,14 @@
 <section class="multi-resume-form-card">
 
     <form
-        action="{{ url_for('analyze_multiple_resumes') }}"
-        method="POST"
-        enctype="multipart/form-data"
-        class="multi-resume-form"
-    >
+    action="{{ url_for('analyze_multiple_resumes') }}"
+    method="POST"
+    enctype="multipart/form-data"
+    class="multi-resume-form"
+    id="multipleResumeForm"
+>
 
-<!-- ==========================================
-STEP 17.6 - JOB DESCRIPTION
-=========================================== -->
+<!-- Job description -->
 
 <div class="multi-form-group">
 
@@ -482,9 +538,7 @@ STEP 17.6 - JOB DESCRIPTION
 </div>
 
 
-<!-- ==========================================
-     STEP 17.6 - JOB DESCRIPTION FILE
-=========================================== -->
+<!-- Optional job-description file -->
 
 <div class="multi-form-group jd-file-upload-group">
 
@@ -584,11 +638,20 @@ STEP 17.6 - JOB DESCRIPTION
 
                     <!-- Submit -->
                     <button
-                        type="submit"
-                        class="multi-screen-button"
-                    >
-                        Analyze & Rank Candidates
-                    </button>
+    type="submit"
+    class="multi-screen-button"
+    id="multipleAnalyzeButton"
+>
+    <span
+        class="button-spinner"
+        id="multipleButtonSpinner"
+        aria-hidden="true"
+    ></span>
+
+    <span id="multipleButtonText">
+        Analyze &amp; Rank Candidates
+    </span>
+</button>
 
                 </form>
 
@@ -779,6 +842,60 @@ STEP 17.6 - JOB DESCRIPTION
         );
 
     </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const multipleForm =
+            document.getElementById("multipleResumeForm");
+
+        const analyzeButton =
+            document.getElementById("multipleAnalyzeButton");
+
+        const buttonSpinner =
+            document.getElementById("multipleButtonSpinner");
+
+        const buttonText =
+            document.getElementById("multipleButtonText");
+
+        if (
+            !multipleForm ||
+            !analyzeButton ||
+            !buttonSpinner ||
+            !buttonText
+        ) {
+            return;
+        }
+
+        let isSubmitting = false;
+
+        multipleForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+
+            if (isSubmitting) {
+                return;
+            }
+
+            isSubmitting = true;
+
+            analyzeButton.disabled = true;
+            analyzeButton.classList.add("is-loading");
+            buttonSpinner.setAttribute("aria-hidden", "false");
+            buttonText.textContent = "Analyzing Candidates...";
+
+            window.setTimeout(() => {
+                multipleForm.submit();
+            }, 200);
+        });
+
+        window.addEventListener("pageshow", () => {
+            isSubmitting = false;
+            analyzeButton.disabled = false;
+            analyzeButton.classList.remove("is-loading");
+            buttonSpinner.setAttribute("aria-hidden", "true");
+            buttonText.textContent = "Analyze & Rank Candidates";
+        });
+    });
+</script>
 
 </body>
 </html>

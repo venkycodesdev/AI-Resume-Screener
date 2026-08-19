@@ -1,16 +1,19 @@
 # Python virtual environment
 venv/
 .venv/
+env/
 
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 
 # Flask / environment secrets
 .env
 .env.*
+!.env.example
 instance/
 
 # SQLite databases

@@ -1,8 +1,10 @@
 import json
 import os
 import re
+import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
+from uuid import uuid4
 from xml.sax.saxutils import escape
 
 import pdfplumber
@@ -74,8 +76,15 @@ login_manager.login_message_category = "info"
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
+# Maximum size allowed for one uploaded file: 10 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# Maximum complete request size: 100 MB
+# Multiple-resume analysis can contain several 10 MB files.
+MAX_REQUEST_SIZE = 100 * 1024 * 1024
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_SIZE
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -191,14 +200,12 @@ class Analysis(db.Model):
         nullable=True,
     )
 
-    # STEP 18.7 - Saved interview questions
     interview_questions = db.Column(
         db.Text,
         nullable=False,
         default="{}",
     )
     
-    # STEP 19.6 - Save score breakdown in history
     score_breakdown = db.Column(
         db.Text,
         nullable=False,
@@ -384,12 +391,173 @@ CATEGORY_ICONS = {
 
 def allowed_file(filename):
     """
-    Check whether the uploaded file has an allowed extension.
+    Check whether the filename has an allowed extension.
     """
 
     return (
-        "." in filename
+        bool(filename)
+        and "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    )
+
+
+def get_uploaded_file_size(uploaded_file):
+    """
+    Return the uploaded file size without saving it permanently.
+
+    The stream is reset to the beginning so that Flask can save or
+    process the file normally after validation.
+    """
+
+    try:
+        uploaded_file.stream.seek(0, os.SEEK_END)
+        file_size = uploaded_file.stream.tell()
+        uploaded_file.stream.seek(0)
+
+        return file_size
+
+    except (AttributeError, OSError):
+        try:
+            uploaded_file.stream.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+        return None
+
+
+def has_valid_file_signature(uploaded_file, extension):
+    """
+    Verify that the actual file content matches its extension.
+
+    This prevents a user from renaming files such as:
+    image.jpg -> resume.pdf
+    notes.txt -> resume.docx
+    """
+
+    try:
+        uploaded_file.stream.seek(0)
+
+        if extension == "pdf":
+            header = uploaded_file.stream.read(5)
+            uploaded_file.stream.seek(0)
+
+            return header == b"%PDF-"
+
+        if extension == "docx":
+            if not zipfile.is_zipfile(uploaded_file.stream):
+                uploaded_file.stream.seek(0)
+                return False
+
+            uploaded_file.stream.seek(0)
+
+            with zipfile.ZipFile(uploaded_file.stream) as docx_archive:
+                archive_files = set(docx_archive.namelist())
+
+                required_files = {
+                    "[Content_Types].xml",
+                    "word/document.xml",
+                }
+
+                is_valid_docx = required_files.issubset(archive_files)
+
+            uploaded_file.stream.seek(0)
+
+            return is_valid_docx
+
+        uploaded_file.stream.seek(0)
+        return False
+
+    except (
+        AttributeError,
+        OSError,
+        zipfile.BadZipFile,
+        RuntimeError,
+    ):
+        try:
+            uploaded_file.stream.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+        return False
+
+
+def validate_uploaded_file(
+    uploaded_file,
+    file_label="file",
+):
+    """
+    Validate filename, extension, size and real file content.
+
+    Returns:
+        (safe_filename, extension, file_size, error_message)
+    """
+
+    if uploaded_file is None:
+        return None, None, None, (
+            f"No {file_label} was received."
+        )
+
+    original_filename = (uploaded_file.filename or "").strip()
+
+    if not original_filename:
+        return None, None, None, (
+            f"Please select a {file_label}."
+        )
+
+    filename = secure_filename(original_filename)
+
+    if not filename:
+        return None, None, None, (
+            f"The selected {file_label} has an invalid filename."
+        )
+
+    if not allowed_file(filename):
+        return None, None, None, (
+            f"The {file_label} must be a PDF or DOCX file."
+        )
+
+    extension = filename.rsplit(".", 1)[1].lower()
+    file_size = get_uploaded_file_size(uploaded_file)
+
+    if file_size is None:
+        return None, None, None, (
+            f"The size of the selected {file_label} could not be checked."
+        )
+
+    if file_size == 0:
+        return None, None, None, (
+            f"The selected {file_label} is empty. "
+            "Please choose a valid PDF or DOCX file."
+        )
+
+    if file_size > MAX_FILE_SIZE:
+        return None, None, None, (
+            f"The selected {file_label} is larger than 10 MB. "
+            "Please upload a smaller file."
+        )
+
+    if not has_valid_file_signature(uploaded_file, extension):
+        return None, None, None, (
+            f"The selected {file_label} is corrupted or its content "
+            f"does not match the .{extension} extension."
+        )
+
+    uploaded_file.stream.seek(0)
+
+    return filename, extension, file_size, None
+
+
+def create_temporary_upload_path(filename, prefix):
+    """
+    Create a unique temporary path to prevent uploaded files
+    from overwriting files with the same name.
+    """
+
+    unique_name = f"{prefix}_{uuid4().hex}_{filename}"
+
+    return os.path.join(
+        app.config["UPLOAD_FOLDER"],
+        unique_name,
     )
 
 
@@ -749,10 +917,6 @@ def calculate_resume_strength(
     }
 
 
-# ==========================================
-# STEP 19.2 - RESUME SCORE BREAKDOWN
-# ==========================================
-
 def calculate_score_breakdown(
     resume_text,
     job_description,
@@ -934,10 +1098,6 @@ def calculate_score_breakdown(
         "projects": max(0, min(100, projects_score)),
     }
 
-
-# ==================================================
-# STEP 19.5 - TARGETED IMPROVEMENT RECOMMENDATIONS
-# ==================================================
 
 def generate_targeted_recommendations(
     score_breakdown,
@@ -1228,10 +1388,6 @@ def generate_final_recommendation(
         "strongest_match": strongest_match,
         "estimated_score": estimated_score,
     }
-    
-    # --------------------------------------------------
-# STEP 18.3 - INTERVIEW QUESTION GENERATOR
-# --------------------------------------------------
 
 
 def generate_interview_questions(
@@ -1709,10 +1865,6 @@ def build_analysis_pdf(report_data):
 
     story.append(score_table)
     
-    # --------------------------------------------------
-    # STEP 19.7 - SCORE BREAKDOWN IN PDF
-    # --------------------------------------------------
-
     story.append(
         Paragraph(
             "Detailed Resume Performance",
@@ -1970,10 +2122,6 @@ def build_analysis_pdf(report_data):
         )
     )
 
-    # --------------------------------------------------
-    # STEP 18.8 - INTERVIEW QUESTIONS IN PDF
-    # --------------------------------------------------
-
     story.append(
         Paragraph(
             "AI-Generated Interview Questions",
@@ -2097,21 +2245,121 @@ def build_analysis_pdf(report_data):
 
 @app.errorhandler(413)
 def file_too_large(error):
+    """
+    Handle uploads that exceed the complete request-size limit.
+    """
+
+    app.logger.warning(
+        "Upload request exceeded the maximum size: %s",
+        request.path,
+    )
+
     if request.path.startswith("/multiple-resume"):
         flash(
-            "One or more uploaded files are too large. "
-            "Maximum request size is 10 MB.",
+            "The complete upload is too large. Each file must be "
+            "10 MB or smaller, and the combined upload must be "
+            "100 MB or smaller.",
             "danger",
         )
+
         return redirect(url_for("multiple_resume"))
-    error_message = (
-        "The uploaded file is too large. Maximum request size is 10 MB."
+
+    if current_user.is_authenticated:
+        return render_template(
+            "index.html",
+            upload_error=(
+                "The complete upload is too large. The resume and "
+                "job-description files must each be 10 MB or smaller."
+            ),
+        ), 413
+
+    flash(
+        "The submitted request was too large. "
+        "Please select smaller files.",
+        "danger",
     )
-    return render_template("index.html", upload_error=error_message), 413
+
+    return redirect(url_for("login"))
+
+
+@app.errorhandler(400)
+def invalid_request(error):
+    """
+    Handle malformed or incomplete browser requests.
+    """
+
+    app.logger.warning(
+        "Invalid request received for %s",
+        request.path,
+    )
+
+    flash(
+        "The submitted request was invalid or incomplete. "
+        "Please check the form and try again.",
+        "danger",
+    )
+
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    return redirect(url_for("login"))
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    """
+    Show a friendly message when a page does not exist.
+    """
+
+    app.logger.info(
+        "Page not found: %s",
+        request.path,
+    )
+
+    flash(
+        "The requested page could not be found.",
+        "warning",
+    )
+
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    return redirect(url_for("login"))
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """
+    Handle unexpected server or analysis failures safely.
+    """
+
+    db.session.rollback()
+
+    app.logger.exception(
+        "Unexpected server error while processing %s",
+        request.path,
+    )
+
+    flash(
+        "Something went wrong while processing your request. "
+        "Your uploaded files were not permanently stored. "
+        "Please try again.",
+        "danger",
+    )
+
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    return redirect(url_for("login"))
 
 
 @app.route("/")
 def landing():
+    """Send visitors to the correct starting page."""
+
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
     return redirect(url_for("login"))
 
 
@@ -2263,7 +2511,6 @@ def analysis_details(analysis_id):
     except (json.JSONDecodeError, TypeError):
         interview_questions = {}
 
-    # STEP 19.6D - Load saved score breakdown
     try:
         score_breakdown = json.loads(
             analysis.score_breakdown or "{}"
@@ -2300,38 +2547,115 @@ def delete_analysis(analysis_id):
 
 
 def extract_uploaded_jd(form_text, uploaded_file, prefix):
+    """
+    Get the job description from pasted text or an uploaded file.
+
+    Validation includes:
+    - Empty job description
+    - Invalid extension
+    - Empty file
+    - File larger than 10 MB
+    - Renamed or corrupted PDF/DOCX file
+    - File with no readable text
+    """
+
     job_description = (form_text or "").strip()
-    has_uploaded = uploaded_file is not None and uploaded_file.filename != ""
-    if not job_description and not has_uploaded:
+
+    has_uploaded_file = (
+        uploaded_file is not None
+        and bool((uploaded_file.filename or "").strip())
+    )
+
+    # The user must paste text or upload a job-description file.
+    if not job_description and not has_uploaded_file:
         return None, (
-            "Please paste the job description or upload a PDF/DOCX "
-            "job description."
+            "Please paste the job description or upload a "
+            "PDF/DOCX job-description file."
         )
-    if has_uploaded:
-        if not allowed_file(uploaded_file.filename):
-            return None, "Job description file must be PDF or DOCX."
-        filename = secure_filename(uploaded_file.filename)
-        extension = filename.rsplit(".", 1)[1].lower()
-        path = os.path.join(
-            app.config["UPLOAD_FOLDER"], f"{prefix}_{filename}"
+
+    # If a file was uploaded, validate and extract text from it.
+    if has_uploaded_file:
+        (
+            filename,
+            extension,
+            file_size,
+            validation_error,
+        ) = validate_uploaded_file(
+            uploaded_file,
+            file_label="job-description file",
         )
+
+        if validation_error:
+            return None, validation_error
+
+        temporary_path = create_temporary_upload_path(
+            filename,
+            prefix,
+        )
+
         try:
-            uploaded_file.save(path)
-            text = extract_resume_text(path, extension).strip()
-            if not text:
+            uploaded_file.save(temporary_path)
+
+            extracted_text = extract_resume_text(
+                temporary_path,
+                extension,
+            ).strip()
+
+            if not extracted_text:
                 return None, (
-                    "No readable text was found inside the "
-                    "uploaded job description file."
+                    "The uploaded job-description file contains no "
+                    "readable text. It may be empty, image-based, "
+                    "password-protected or corrupted."
                 )
-            job_description = text
-        except Exception:
-            app.logger.exception(
-                "Job description extraction failed"
+
+            job_description = extracted_text
+
+        except (
+            zipfile.BadZipFile,
+            KeyError,
+            ValueError,
+            OSError,
+        ) as error:
+            app.logger.warning(
+                "Invalid job-description file %s: %s",
+                filename,
+                error,
             )
-            return None, "The uploaded job description could not be processed."
+
+            return None, (
+                "The uploaded job-description file is corrupted, "
+                "password-protected or not a valid PDF/DOCX document."
+            )
+
+        except Exception as error:
+            app.logger.exception(
+                "Job-description extraction failed for %s: %s",
+                filename,
+                error,
+            )
+
+            return None, (
+                "The job-description file could not be processed. "
+                "Please check the file and try again."
+            )
+
         finally:
-            if os.path.exists(path):
-                os.remove(path)
+            if os.path.exists(temporary_path):
+                try:
+                    os.remove(temporary_path)
+                except OSError:
+                    app.logger.warning(
+                        "Could not remove temporary job-description file: %s",
+                        temporary_path,
+                    )
+
+    # Final check after pasted-text/file processing.
+    if not job_description.strip():
+        return None, (
+            "The job description cannot be empty. "
+            "Please provide the role, skills and requirements."
+        )
+
     return job_description, None
 
 
@@ -2344,123 +2668,286 @@ def multiple_resume():
 @app.route("/multiple-resume/analyze", methods=["POST"])
 @login_required
 def analyze_multiple_resumes():
-    job_description, error = extract_uploaded_jd(
+    """
+    Validate, analyze, score and rank multiple resumes.
+    """
+
+    # Validate pasted or uploaded job description.
+    job_description, job_error = extract_uploaded_jd(
         request.form.get("job_description", ""),
         request.files.get("job_description_file"),
         "multi_jd",
     )
-    if error:
-        flash(error, "danger")
+
+    if job_error:
+        flash(job_error, "danger")
         return redirect(url_for("multiple_resume"))
 
     job_skills = extract_skills(job_description)
+
     if not validate_detected_job_skills(job_skills):
         flash(
             "The job description contains no recognized skills. "
             "Please provide a more detailed job description.",
-            "warning"
+            "warning",
         )
         return redirect(url_for("multiple_resume"))
+
     job_skill_set = set(job_skills)
 
-    files = request.files.getlist("resumes")
-    valid_files = [file for file in files if file and file.filename]
+    # Receive all selected resume files.
+    uploaded_files = request.files.getlist("resumes")
+
+    valid_files = [
+        uploaded_file
+        for uploaded_file in uploaded_files
+        if uploaded_file
+        and (uploaded_file.filename or "").strip()
+    ]
+
     if len(valid_files) < 2:
-        flash("Please upload at least two resumes.", "warning")
+        flash(
+            "Please upload at least two resumes for candidate comparison.",
+            "warning",
+        )
         return redirect(url_for("multiple_resume"))
 
-    uploaded_names = [secure_filename(file.filename) for file in valid_files]
+    # Validate duplicate filenames.
+    uploaded_names = [
+        secure_filename(uploaded_file.filename).lower()
+        for uploaded_file in valid_files
+    ]
+
     if len(uploaded_names) != len(set(uploaded_names)):
         flash(
             "Duplicate resume filenames were detected. "
-            "Please rename the files and upload them again.",
-            "warning"
+            "Please rename the duplicate files and upload them again.",
+            "warning",
         )
         return redirect(url_for("multiple_resume"))
 
+    validated_files = []
+
+    # Validate every file before analyzing any candidate.
+    for uploaded_file in valid_files:
+        original_name = (
+            uploaded_file.filename or "selected file"
+        ).strip()
+
+        (
+            filename,
+            extension,
+            file_size,
+            validation_error,
+        ) = validate_uploaded_file(
+            uploaded_file,
+            file_label=f"resume '{original_name}'",
+        )
+
+        if validation_error:
+            flash(validation_error, "danger")
+            return redirect(url_for("multiple_resume"))
+
+        validated_files.append(
+            {
+                "uploaded_file": uploaded_file,
+                "filename": filename,
+                "extension": extension,
+                "file_size": file_size,
+            }
+        )
+
     candidates = []
-    for file in valid_files:
-        if not allowed_file(file.filename):
+
+    # Extract and analyze every validated resume.
+    for validated_file in validated_files:
+        uploaded_file = validated_file["uploaded_file"]
+        filename = validated_file["filename"]
+        extension = validated_file["extension"]
+        file_size = validated_file["file_size"]
+
+        temporary_path = create_temporary_upload_path(
+            filename,
+            "multiple_resume",
+        )
+
+        try:
+            uploaded_file.save(temporary_path)
+
+            text = extract_resume_text(
+                temporary_path,
+                extension,
+            ).strip()
+
+        except (
+            zipfile.BadZipFile,
+            KeyError,
+            ValueError,
+            OSError,
+        ) as error:
+            app.logger.warning(
+                "Invalid multiple-resume file %s: %s",
+                filename,
+                error,
+            )
+
             flash(
-                f"{file.filename} is not a valid PDF or DOCX file.",
-                "danger"
+                f"{filename} is corrupted, password-protected "
+                "or not a valid PDF/DOCX document.",
+                "danger",
             )
             return redirect(url_for("multiple_resume"))
-        filename = secure_filename(file.filename)
-        extension = filename.rsplit(".", 1)[1].lower()
-        path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        try:
-            file.save(path)
-            text = extract_resume_text(path, extension).strip()
+
         except Exception as error:
             app.logger.exception(
-                "Text extraction failed for %s: %s", filename, error
+                "Multiple-resume processing failed for %s: %s",
+                filename,
+                error,
             )
-            flash(f"Could not extract text from {filename}.", "danger")
+
+            flash(
+                f"{filename} could not be processed. "
+                "Please check the file and try again.",
+                "danger",
+            )
             return redirect(url_for("multiple_resume"))
+
         finally:
-            if os.path.exists(path):
-                os.remove(path)
+            if os.path.exists(temporary_path):
+                try:
+                    os.remove(temporary_path)
+                except OSError:
+                    app.logger.warning(
+                        "Could not remove temporary resume: %s",
+                        temporary_path,
+                    )
+
         if not text:
-            flash(f"No readable text was found in {filename}.", "warning")
+            flash(
+                f"No readable text was found in {filename}. "
+                "The file may be empty, image-based, "
+                "password-protected or corrupted.",
+                "warning",
+            )
+            return redirect(url_for("multiple_resume"))
+
+        if len(text.split()) < 3:
+            flash(
+                f"{filename} does not contain enough readable "
+                "text for analysis.",
+                "warning",
+            )
             return redirect(url_for("multiple_resume"))
 
         resume_skills = extract_skills(text)
         resume_skill_set = set(resume_skills)
-        matching_skills = sorted(resume_skill_set & job_skill_set)
-        missing_skills = sorted(job_skill_set - resume_skill_set)
-        score = round(len(matching_skills) / len(job_skill_set) * 100)
-        
-                # STEP 19.8 - 4-category score breakdown
+
+        matching_skills = sorted(
+            resume_skill_set & job_skill_set
+        )
+
+        missing_skills = sorted(
+            job_skill_set - resume_skill_set
+        )
+
+        match_score = round(
+            len(matching_skills)
+            / len(job_skill_set)
+            * 100
+        )
+
         score_breakdown = calculate_score_breakdown(
             text,
             job_description,
             matching_skills,
             job_skills,
         )
-        candidates.append({
-            "filename": filename,
-            "file_type": extension.upper(),
-            "extracted_text": text,
-            "word_count": len(text.split()),
-            "character_count": len(text),
-            "line_count": len([
-                line for line in text.splitlines() if line.strip()
-            ]),
-            "resume_skills": resume_skills,
-            "matching_skills": matching_skills,
-            "missing_skills": missing_skills,
-            "match_score": score,
-            "score_breakdown": score_breakdown,
-        })
 
-    candidates.sort(key=lambda c: c["match_score"], reverse=True)
-    for rank, candidate in enumerate(candidates, start=1):
+        candidates.append(
+            {
+                "filename": filename,
+                "file_type": extension.upper(),
+                "file_size": file_size,
+                "extracted_text": text,
+                "word_count": len(text.split()),
+                "character_count": len(text),
+                "line_count": len(
+                    [
+                        line
+                        for line in text.splitlines()
+                        if line.strip()
+                    ]
+                ),
+                "resume_skills": resume_skills,
+                "matching_skills": matching_skills,
+                "missing_skills": missing_skills,
+                "match_score": match_score,
+                "score_breakdown": score_breakdown,
+            }
+        )
+
+    # Rank candidates from highest to lowest score.
+    candidates.sort(
+        key=lambda candidate: candidate["match_score"],
+        reverse=True,
+    )
+
+    for rank, candidate in enumerate(
+        candidates,
+        start=1,
+    ):
         candidate["rank"] = rank
 
+    # Save candidate results in history.
     try:
         for candidate in candidates:
-            db.session.add(Analysis(
+            analysis = Analysis(
                 user_id=current_user.id,
                 resume_filename=candidate["filename"],
                 analysis_type="multiple",
                 job_description=job_description,
                 match_score=candidate["match_score"],
-                detected_skills=json.dumps(candidate["resume_skills"]),
-                matching_skills=json.dumps(candidate["matching_skills"]),
-                missing_skills=json.dumps(candidate["missing_skills"]),
+                detected_skills=json.dumps(
+                    candidate["resume_skills"]
+                ),
+                matching_skills=json.dumps(
+                    candidate["matching_skills"]
+                ),
+                missing_skills=json.dumps(
+                    candidate["missing_skills"]
+                ),
                 candidate_rank=candidate["rank"],
-            ))
+                score_breakdown=json.dumps(
+                    candidate["score_breakdown"]
+                ),
+            )
+
+            db.session.add(analysis)
+
         db.session.commit()
-    except Exception:
+
+    except Exception as error:
         db.session.rollback()
-        app.logger.exception("Failed to save multiple-resume history")
+
+        app.logger.exception(
+            "Failed to save multiple-resume history: %s",
+            error,
+        )
+
+        flash(
+            "The candidates were analyzed, but their history "
+            "could not be saved.",
+            "warning",
+        )
 
     return render_template(
         "multiple_resume.html",
         extraction_success=True,
         candidates=candidates,
-        uploaded_names=[c["filename"] for c in candidates],
+        uploaded_names=[
+            candidate["filename"]
+            for candidate in candidates
+        ],
         upload_success=True,
         job_description=job_description,
         job_skills=job_skills,
@@ -2470,59 +2957,129 @@ def analyze_multiple_resumes():
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload_resume():
-    if "resume" not in request.files:
-        return render_template(
-            "index.html", upload_error="No resume file was received."
-        )
-    file = request.files["resume"]
-    if file.filename == "":
-        return render_template(
-            "index.html", upload_error="Please select a resume file."
-        )
-    if not allowed_file(file.filename):
+    # Get the uploaded resume from the form.
+    uploaded_resume = request.files.get("resume")
+
+    (
+        filename,
+        extension,
+        file_size,
+        validation_error,
+    ) = validate_uploaded_file(
+        uploaded_resume,
+        file_label="resume",
+    )
+
+    if validation_error:
         return render_template(
             "index.html",
-            upload_error="Only PDF and DOCX resume files are allowed.",
+            upload_error=validation_error,
         )
 
-    job_description, error = extract_uploaded_jd(
+    # Validate the pasted or uploaded job description.
+    job_description, job_error = extract_uploaded_jd(
         request.form.get("job_description", ""),
         request.files.get("job_description_file"),
-        "jd",
+        "single_jd",
     )
-    if error:
-        return render_template("index.html", upload_error=error)
 
-    filename = secure_filename(file.filename)
-    extension = filename.rsplit(".", 1)[1].lower()
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    try:
-        file.save(path)
-        size = os.path.getsize(path)
-        text = extract_resume_text(path, extension).strip()
-    except Exception as error:
-        app.logger.exception("Resume processing failed: %s", error)
+    if job_error:
         return render_template(
             "index.html",
-            upload_error="The resume could not be processed.",
+            upload_error=job_error,
         )
+
+    # Use a unique temporary filename.
+    temporary_path = create_temporary_upload_path(
+        filename,
+        "single_resume",
+    )
+
+    try:
+        uploaded_resume.save(temporary_path)
+
+        text = extract_resume_text(
+            temporary_path,
+            extension,
+        ).strip()
+
+    except (
+        zipfile.BadZipFile,
+        KeyError,
+        ValueError,
+        OSError,
+    ) as error:
+        app.logger.warning(
+            "Invalid resume file %s: %s",
+            filename,
+            error,
+        )
+
+        return render_template(
+            "index.html",
+            upload_error=(
+                "The uploaded resume is corrupted, "
+                "password-protected or not a valid PDF/DOCX document."
+            ),
+        )
+
+    except Exception as error:
+        app.logger.exception(
+            "Resume processing failed for %s: %s",
+            filename,
+            error,
+        )
+
+        return render_template(
+            "index.html",
+            upload_error=(
+                "The resume could not be processed. "
+                "Please check the file and try again."
+            ),
+        )
+
     finally:
-        if os.path.exists(path):
-            os.remove(path)
+        if os.path.exists(temporary_path):
+            try:
+                os.remove(temporary_path)
+            except OSError:
+                app.logger.warning(
+                    "Could not remove temporary resume file: %s",
+                    temporary_path,
+                )
+
+    # The file is structurally valid, but it may contain no text.
     if not text:
         return render_template(
             "index.html",
             upload_error=(
-                "The resume was uploaded, but no readable text was found."
+                "No readable text was found in the resume. "
+                "The file may be empty, image-based, "
+                "password-protected or corrupted."
             ),
         )
 
-    if size < 1024:
-        formatted_size = f"{size} bytes"
-    elif size < 1024 * 1024:
-        formatted_size = f"{size / 1024:.2f} KB"
+    # Reject files containing only a few unreadable characters.
+    if len(text.split()) < 3:
+        return render_template(
+            "index.html",
+            upload_error=(
+                "The resume does not contain enough readable text "
+                "for analysis. Please upload a complete resume."
+            ),
+        )
+
+    # Create a readable file-size value for the result page.
+    if file_size < 1024:
+        formatted_size = f"{file_size} bytes"
+
+    elif file_size < 1024 * 1024:
+        formatted_size = f"{file_size / 1024:.2f} KB"
+
     else:
-        formatted_size = f"{size / (1024 * 1024):.2f} MB"
+        formatted_size = (
+            f"{file_size / (1024 * 1024):.2f} MB"
+        )
 
     resume_info = {
         "filename": filename,
@@ -2602,14 +3159,24 @@ def upload_resume():
             missing_skills=json.dumps(missing_skills),
             candidate_rank=None,
 
-            # STEP 18.7 - Save interview questions
             interview_questions=json.dumps(interview_questions),
             score_breakdown=json.dumps(score_breakdown),
         ))
         db.session.commit()
-    except Exception:
+    except Exception as error:
         db.session.rollback()
-        app.logger.exception("Failed to save resume analysis history")
+
+        app.logger.exception(
+            "Failed to save single-resume analysis history: %s",
+            error,
+        )
+
+        flash(
+            "Your resume was analyzed successfully, but the result "
+            "could not be saved to Resume History. You can still "
+            "view the current analysis.",
+            "warning",
+        )
 
     return render_template(
         "index.html",
@@ -2676,16 +3243,17 @@ def download_report():
             request.form.get("improvement_areas")
         ),
         "suggestions": safe_json_list(
-            request.form.get("suggestions")),
-        
+            request.form.get("suggestions")
+        ),
         "technical_questions": safe_json_list(
-            request.form.get("technical_questions")),
-
+            request.form.get("technical_questions")
+        ),
         "resume_questions": safe_json_list(
-            request.form.get("resume_questions")),
-
+            request.form.get("resume_questions")
+        ),
         "job_questions": safe_json_list(
-            request.form.get("job_questions")),
+            request.form.get("job_questions")
+        ),
     }
     pdf_buffer = build_analysis_pdf(report_data)
     original_name = os.path.splitext(report_data["filename"])[0]
@@ -2703,4 +3271,5 @@ with app.app_context():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_enabled = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(debug=debug_enabled)

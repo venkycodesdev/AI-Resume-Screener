@@ -2580,12 +2580,6 @@ body {
 
 /* Upload Button Loading State */
 
-.upload-submit-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.8;
-    transform: none;
-}
-
 .button-loading {
     display: inline-flex;
     justify-content: center;
@@ -6894,7 +6888,7 @@ DELETE HISTORY RECORD
 
 
 /* =========================================================
-   RESPONSIVE
+RESPONSIVE
 ========================================================= */
 
 @media (max-width: 850px) {
@@ -6929,3 +6923,108 @@ DELETE HISTORY RECORD
     }
 
 }
+
+/* ==========================================
+   DAY 10 - GLOBAL ERROR MESSAGES
+========================================== */
+
+.global-message-container {
+    width: min(100% - 32px, 900px);
+    margin: 24px auto;
+}
+
+.global-message-container .upload-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: 14px;
+}
+
+.global-message-container .message-icon {
+    flex-shrink: 0;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.global-message-container .message-content {
+    flex: 1;
+}
+
+.global-message-container .message-content h3 {
+    margin: 0 0 6px;
+}
+
+.global-message-container .message-content p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+    .global-message-container {
+        width: min(100% - 24px, 900px);
+        margin: 16px auto;
+    }
+
+    .global-message-container .upload-message {
+        padding: 15px;
+    }
+}
+
+/* ==========================================
+   DAY 10 - ANALYSIS LOADING BUTTON
+========================================== */
+
+.upload-submit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.upload-submit-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+    transform: none;
+}
+
+.button-spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: analysis-spinner 0.8s linear infinite;
+}
+
+.upload-submit-button.is-loading .button-spinner {
+    display: inline-block;
+}
+
+@keyframes analysis-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Multiple-resume loading button */
+
+.multi-screen-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.multi-screen-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+    transform: none;
+}
+
+.multi-screen-button.is-loading .button-spinner {
+    display: inline-block;
+}
+
