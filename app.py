@@ -205,7 +205,7 @@ class Analysis(db.Model):
         nullable=False,
         default="{}",
     )
-    
+
     score_breakdown = db.Column(
         db.Text,
         nullable=False,
@@ -399,6 +399,163 @@ def allowed_file(filename):
         and "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
+
+
+def extract_projects_section(resume_text):
+    """Extract only the dedicated Projects section from a resume."""
+
+    text = resume_text or ""
+    project_headings = {
+        "project",
+        "projects",
+        "academic projects",
+        "personal projects",
+        "technical projects",
+        "key projects",
+        "selected projects",
+    }
+    stopping_headings = {
+        "education",
+        "academic background",
+        "experience",
+        "work experience",
+        "professional experience",
+        "employment history",
+        "skills",
+        "technical skills",
+        "certifications",
+        "achievements",
+        "summary",
+        "objective",
+        "languages",
+        "publications",
+        "interests",
+    }
+
+    project_lines = []
+    collecting = False
+
+    for line in text.splitlines():
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue
+
+        normalized_line = re.sub(
+            r"[^a-z ]",
+            " ",
+            stripped_line.lower(),
+        )
+        normalized_line = re.sub(
+            r"\s+",
+            " ",
+            normalized_line,
+        ).strip()
+
+        if normalized_line in project_headings:
+            collecting = True
+            continue
+
+        if collecting and normalized_line in stopping_headings:
+            break
+
+        if collecting:
+            project_lines.append(stripped_line)
+
+    return "\n".join(project_lines)
+
+
+def calculate_projects_relevance_score(
+    resume_text,
+    job_description,
+    job_skills,
+):
+    """Calculate project relevance from the resume's Projects section."""
+
+    text = resume_text or ""
+    project_headings = {
+        "project",
+        "projects",
+        "academic projects",
+        "personal projects",
+        "technical projects",
+    }
+    stopping_headings = {
+        "education",
+        "experience",
+        "work experience",
+        "professional experience",
+        "skills",
+        "technical skills",
+        "certifications",
+        "achievements",
+        "summary",
+        "objective",
+        "languages",
+        "publications",
+        "interests",
+    }
+
+    project_lines = []
+    collecting = False
+
+    for line in text.splitlines():
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue
+
+        normalized_line = re.sub(
+            r"[^a-z ]",
+            "",
+            stripped_line.lower(),
+        ).strip()
+
+        if normalized_line in project_headings:
+            collecting = True
+            continue
+
+        if collecting and normalized_line in stopping_headings:
+            break
+
+        if collecting:
+            project_lines.append(stripped_line)
+
+    project_text = "\n".join(project_lines)
+    if len(re.findall(r"\b\w+\b", project_text)) < 5:
+        return 0
+
+    project_lower = project_text.lower()
+    score = 10
+
+    matched_skills = sum(
+        bool(re.search(
+            rf"(?<!\w){re.escape(skill)}(?!\w)",
+            project_text,
+            flags=re.IGNORECASE,
+        ))
+        for skill in job_skills or []
+    )
+    if job_skills:
+        score += round(matched_skills / len(job_skills) * 55)
+
+    action_terms = (
+        "built", "developed", "created", "designed", "implemented",
+        "deployed", "automated", "trained", "analyzed", "optimized",
+    )
+    score += min(
+        sum(
+            bool(re.search(rf"\b{term}\b", project_lower))
+            for term in action_terms
+        ) * 4,
+        16,
+    )
+
+    impact_pattern = (
+        r"\b\d+(?:\.\d+)?\s*(?:%|users?|clients?|hours?|days?)\b"
+    )
+    if re.search(impact_pattern, project_lower):
+        score += 10
+
+    return max(0, min(100, round(score)))
 
 
 def get_uploaded_file_size(uploaded_file):
@@ -917,6 +1074,903 @@ def calculate_resume_strength(
     }
 
 
+def find_term_contexts(
+    text,
+    term,
+    window_size=140,
+):
+    """
+    Find short text areas surrounding a term.
+
+    Context helps determine whether a skill is merely listed
+    or supported by project/experience evidence.
+    """
+
+    source_text = text or ""
+
+    pattern = re.compile(
+        rf"(?<!\w){re.escape(term)}(?!\w)",
+        re.IGNORECASE,
+    )
+
+    contexts = []
+
+    for match in pattern.finditer(source_text):
+        start = max(
+            0,
+            match.start() - window_size,
+        )
+
+        end = min(
+            len(source_text),
+            match.end() + window_size,
+        )
+
+        contexts.append(
+            source_text[start:end].lower()
+        )
+
+    return contexts
+
+
+def calculate_job_skill_weight(
+    job_description,
+    skill,
+):
+    """
+    Give more importance to required skills and less importance
+    to optional/preferred skills.
+    """
+
+    skill_contexts = find_term_contexts(
+        job_description,
+        skill,
+        window_size=120,
+    )
+
+    required_terms = [
+        "required",
+        "mandatory",
+        "must have",
+        "must-have",
+        "proficient",
+        "proficiency",
+        "strong knowledge",
+        "strong experience",
+        "hands-on",
+        "expertise",
+        "essential",
+    ]
+
+    preferred_terms = [
+        "preferred",
+        "nice to have",
+        "nice-to-have",
+        "good to have",
+        "added advantage",
+        "plus",
+        "optional",
+    ]
+
+    for context in skill_contexts:
+        if any(
+            term in context
+            for term in required_terms
+        ):
+            return 1.35
+
+    for context in skill_contexts:
+        if any(
+            term in context
+            for term in preferred_terms
+        ):
+            return 0.75
+
+    return 1.0
+
+
+def calculate_resume_skill_evidence(
+    resume_text,
+    skill,
+):
+    """
+    Calculate evidence strength for one job skill.
+
+    Score meaning:
+    - 0.00: skill not found
+    - 0.60: skill mentioned only once
+    - Higher values: repeated or supported by practical evidence
+    - 1.00: strong practical evidence
+    """
+
+    skill_contexts = find_term_contexts(
+        resume_text,
+        skill,
+        window_size=150,
+    )
+
+    if not skill_contexts:
+        return 0.0
+
+    # A detected skill receives basic credit.
+    evidence_score = 0.60
+
+    # Repeated use provides more confidence than one keyword.
+    if len(skill_contexts) >= 2:
+        evidence_score += 0.10
+
+    practical_action_terms = [
+        "built",
+        "created",
+        "developed",
+        "designed",
+        "implemented",
+        "integrated",
+        "deployed",
+        "trained",
+        "tested",
+        "optimized",
+        "analyzed",
+        "automated",
+        "managed",
+        "used",
+        "worked with",
+        "responsible for",
+        "contributed",
+        "improved",
+        "achieved",
+    ]
+
+    evidence_area_terms = [
+        "project",
+        "projects",
+        "experience",
+        "internship",
+        "intern",
+        "employment",
+        "work history",
+        "professional experience",
+        "freelance",
+        "research",
+    ]
+
+    has_practical_action = any(
+        action_term in context
+        for context in skill_contexts
+        for action_term in practical_action_terms
+    )
+
+    has_evidence_area = any(
+        area_term in context
+        for context in skill_contexts
+        for area_term in evidence_area_terms
+    )
+
+    if has_practical_action:
+        evidence_score += 0.20
+
+    if has_evidence_area:
+        evidence_score += 0.10
+
+    return min(
+        evidence_score,
+        1.0,
+    )
+
+
+def calculate_intelligent_skills_score(
+    resume_text,
+    job_description,
+    job_skills,
+):
+    """
+    Calculate a weighted and evidence-based skills score.
+
+    Required skills receive more weight.
+    Preferred skills receive slightly less weight.
+    Resume skills with practical evidence receive more credit.
+    """
+
+    if not job_skills:
+        return 0
+
+    weighted_score = 0.0
+    total_weight = 0.0
+
+    for skill in job_skills:
+        skill_weight = calculate_job_skill_weight(
+            job_description,
+            skill,
+        )
+
+        skill_evidence = calculate_resume_skill_evidence(
+            resume_text,
+            skill,
+        )
+
+        weighted_score += (
+            skill_evidence * skill_weight
+        )
+
+        total_weight += skill_weight
+
+    if total_weight == 0:
+        return 0
+
+    final_score = round(
+        weighted_score / total_weight * 100
+    )
+
+    return max(
+        0,
+        min(100, final_score),
+    )
+
+
+def extract_experience_section(resume_text):
+    """
+    Extract only the candidate's experience-related section.
+
+    Project descriptions are not automatically treated as
+    professional experience.
+    """
+
+    text = resume_text or ""
+
+    experience_headings = [
+        "work experience",
+        "professional experience",
+        "employment history",
+        "career history",
+        "internship experience",
+        "internships",
+        "internship",
+        "experience",
+    ]
+
+    stopping_headings = [
+        "education",
+        "projects",
+        "skills",
+        "technical skills",
+        "certifications",
+        "achievements",
+        "summary",
+        "objective",
+        "languages",
+        "publications",
+        "interests",
+    ]
+
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
+
+    section_lines = []
+    collecting = False
+
+    for line in lines:
+        normalized_line = re.sub(
+            r"[^a-z ]",
+            "",
+            line.lower(),
+        ).strip()
+
+        if normalized_line in experience_headings:
+            collecting = True
+            continue
+
+        if (
+            collecting
+            and normalized_line in stopping_headings
+        ):
+            break
+
+        if collecting:
+            section_lines.append(line)
+
+    return "\n".join(section_lines)
+
+
+def extract_required_experience_years(job_description):
+    """
+    Detect the minimum number of experience years required by the JD.
+    Examples: '2 years', '3+ years', '2-4 years'.
+    """
+
+    job_text = (job_description or "").lower()
+
+    patterns = [
+        r"(\d+)\s*\+\s*years?",
+        r"minimum\s+of\s+(\d+)\s*years?",
+        r"at\s+least\s+(\d+)\s*years?",
+        r"(\d+)\s*-\s*\d+\s*years?",
+        r"(\d+)\s+years?\s+of\s+experience",
+    ]
+
+    detected_years = []
+
+    for pattern in patterns:
+        matches = re.findall(
+            pattern,
+            job_text,
+            flags=re.IGNORECASE,
+        )
+
+        detected_years.extend(
+            int(match)
+            for match in matches
+        )
+
+    if not detected_years:
+        return 0
+
+    return max(detected_years)
+
+
+def extract_resume_experience_years(experience_text):
+    """
+    Detect explicitly mentioned experience duration from
+    the candidate's experience section.
+    """
+
+    text = (experience_text or "").lower()
+
+    patterns = [
+        r"(\d+)\s*\+\s*years?",
+        r"(\d+)\s+years?\s+of\s+experience",
+        r"experience\s+of\s+(\d+)\s+years?",
+    ]
+
+    detected_years = []
+
+    for pattern in patterns:
+        matches = re.findall(
+            pattern,
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        detected_years.extend(
+            int(match)
+            for match in matches
+        )
+
+    if not detected_years:
+        return 0
+
+    return max(detected_years)
+
+
+def calculate_experience_relevance_score(
+    resume_text,
+    job_description,
+    job_skills,
+):
+    """
+    Calculate experience relevance using real evidence:
+
+    - An Experience or Internship section
+    - Practical action statements
+    - Relevant job skills
+    - Role-related terms
+    - Dates, duration and measurable achievements
+    """
+
+    experience_text = extract_experience_section(
+        resume_text
+    )
+
+    # A project section alone must not receive
+    # professional-experience credit.
+    if not experience_text.strip():
+        return 0
+
+    experience_lower = experience_text.lower()
+
+    word_count = len(
+        re.findall(
+            r"\b\w+\b",
+            experience_text,
+        )
+    )
+
+    # Reject an empty or extremely short section.
+    if word_count < 5:
+        return 0
+
+    experience_score = 10
+
+    # Give credit for a meaningful description.
+    if word_count >= 15:
+        experience_score += 10
+
+    if word_count >= 35:
+        experience_score += 5
+
+    action_terms = [
+        "developed",
+        "built",
+        "created",
+        "designed",
+        "implemented",
+        "integrated",
+        "deployed",
+        "managed",
+        "maintained",
+        "tested",
+        "optimized",
+        "automated",
+        "analyzed",
+        "trained",
+        "led",
+        "collaborated",
+        "improved",
+        "resolved",
+        "delivered",
+        "supported",
+    ]
+
+    detected_actions = {
+        action
+        for action in action_terms
+        if re.search(
+            rf"\b{re.escape(action)}\b",
+            experience_lower,
+        )
+    }
+
+    # Maximum action-evidence contribution: 20 points.
+    experience_score += min(
+        len(detected_actions) * 5,
+        20,
+    )
+
+    # Compare JD skills with the actual experience section.
+    if job_skills:
+        relevant_skills = [
+            skill
+            for skill in job_skills
+            if re.search(
+                rf"(?<!\w){re.escape(skill)}(?!\w)",
+                experience_text,
+                flags=re.IGNORECASE,
+            )
+        ]
+
+        skill_relevance_ratio = (
+            len(relevant_skills) /
+            len(job_skills)
+        )
+
+        experience_score += round(
+            skill_relevance_ratio * 35
+        )
+
+    role_terms = [
+        "developer",
+        "engineer",
+        "analyst",
+        "intern",
+        "consultant",
+        "specialist",
+        "associate",
+        "researcher",
+        "freelancer",
+    ]
+
+    if any(
+        re.search(
+            rf"\b{re.escape(role)}\b",
+            experience_lower,
+        )
+        for role in role_terms
+    ):
+        experience_score += 5
+
+    # Detect employment dates such as 2023-2024 or Jan 2024.
+    has_date_evidence = bool(
+        re.search(
+            r"\b(?:19|20)\d{2}\b",
+            experience_text,
+        )
+        or re.search(
+            r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
+            r"[a-z]*\s+(?:19|20)\d{2}\b",
+            experience_text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+    if has_date_evidence:
+        experience_score += 5
+
+    # Detect achievements such as 20%, 500 users or 3 systems.
+    has_measurable_result = bool(
+        re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:%|users?|clients?|projects?|"
+            r"applications?|systems?|hours?|days?|months?)\b",
+            experience_lower,
+        )
+    )
+
+    if has_measurable_result:
+        experience_score += 10
+
+    required_years = extract_required_experience_years(
+        job_description
+    )
+
+    resume_years = extract_resume_experience_years(
+        experience_text
+    )
+
+    if required_years > 0:
+        if resume_years >= required_years:
+            experience_score += 10
+
+        elif resume_years > 0:
+            experience_score += round(
+                resume_years /
+                required_years *
+                10
+            )
+
+    # Prevent weak evidence from receiving an automatic 100%.
+    return max(
+        0,
+        min(95, round(experience_score)),
+    )
+
+
+def extract_education_section(resume_text):
+    """
+    Extract only the Education section from the resume.
+    """
+
+    text = resume_text or ""
+
+    education_headings = [
+        "education",
+        "academic background",
+        "academic qualifications",
+        "educational qualifications",
+        "qualifications",
+    ]
+
+    stopping_headings = [
+        "experience",
+        "work experience",
+        "professional experience",
+        "employment history",
+        "projects",
+        "skills",
+        "technical skills",
+        "certifications",
+        "achievements",
+        "summary",
+        "objective",
+        "languages",
+        "interests",
+    ]
+
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
+
+    section_lines = []
+    collecting = False
+
+    for line in lines:
+        normalized_line = re.sub(
+            r"[^a-z ]",
+            " ",
+            line.lower(),
+        )
+
+        normalized_line = re.sub(
+            r"\s+",
+            " ",
+            normalized_line,
+        ).strip()
+
+        if normalized_line in education_headings:
+            collecting = True
+            continue
+
+        if (
+            collecting
+            and normalized_line in stopping_headings
+        ):
+            break
+
+        if collecting:
+            section_lines.append(line)
+
+    return "\n".join(section_lines)
+
+
+def detect_degree_level(text):
+    """
+    Detect the highest degree level mentioned in text.
+
+    Level:
+    4 = Doctorate
+    3 = Master's
+    2 = Bachelor's
+    1 = Diploma/Associate
+    0 = No recognised degree
+    """
+
+    source_text = (text or "").lower()
+
+    degree_levels = {
+        4: [
+            r"\bph\.?\s*d\b",
+            r"\bdoctorate\b",
+            r"\bdoctoral\b",
+        ],
+        3: [
+            r"\bm\.?\s*tech\b",
+            r"\bmtech\b",
+            r"\bm\.?\s*sc\b",
+            r"\bmsc\b",
+            r"\bm\.?\s*ca\b",
+            r"\bmca\b",
+            r"\bmaster(?:'s)?\b",
+        ],
+        2: [
+            r"\bb\.?\s*tech\b",
+            r"\bbtech\b",
+            r"\bb\.?\s*e\b",
+            r"\bb\.?\s*sc\b",
+            r"\bbsc\b",
+            r"\bb\.?\s*ca\b",
+            r"\bbca\b",
+            r"\bbachelor(?:'s)?\b",
+            r"\bundergraduate degree\b",
+        ],
+        1: [
+            r"\bdiploma\b",
+            r"\bassociate degree\b",
+            r"\bpolytechnic\b",
+        ],
+    }
+
+    for level in sorted(
+        degree_levels,
+        reverse=True,
+    ):
+        if any(
+            re.search(pattern, source_text)
+            for pattern in degree_levels[level]
+        ):
+            return level
+
+    return 0
+
+
+def detect_education_fields(text):
+    """
+    Detect education specialisations or study fields.
+    """
+
+    source_text = (text or "").lower()
+
+    education_fields = {
+        "computer science": [
+            "computer science",
+            "computer engineering",
+            "computer applications",
+            "cse",
+        ],
+        "information technology": [
+            "information technology",
+            "information systems",
+        ],
+        "artificial intelligence": [
+            "artificial intelligence",
+            "ai and machine learning",
+            "ai & machine learning",
+            "aiml",
+        ],
+        "machine learning": [
+            "machine learning",
+            "ml engineering",
+        ],
+        "data science": [
+            "data science",
+            "data analytics",
+        ],
+        "electronics": [
+            "electronics",
+            "electrical engineering",
+            "ece",
+            "eee",
+        ],
+        "engineering": [
+            "engineering",
+            "technology",
+        ],
+        "mathematics": [
+            "mathematics",
+            "statistics",
+        ],
+    }
+
+    detected_fields = set()
+
+    for field_name, aliases in education_fields.items():
+        if any(
+            alias in source_text
+            for alias in aliases
+        ):
+            detected_fields.add(field_name)
+
+    return detected_fields
+
+
+def calculate_education_match_score(
+    resume_text,
+    job_description,
+    job_skills,
+):
+    """
+    Calculate education relevance using:
+
+    - Education-section evidence
+    - Required degree level
+    - Relevant study field
+    - Coursework and technical subjects
+    - Academic achievement evidence
+    """
+
+    education_text = extract_education_section(
+        resume_text
+    )
+
+    if not education_text.strip():
+        return 0
+
+    education_words = re.findall(
+        r"\b\w+\b",
+        education_text,
+    )
+
+    # Reject empty or meaningless Education sections.
+    if len(education_words) < 3:
+        return 0
+
+    resume_degree_level = detect_degree_level(
+        education_text
+    )
+
+    required_degree_level = detect_degree_level(
+        job_description
+    )
+
+    resume_fields = detect_education_fields(
+        education_text
+    )
+
+    required_fields = detect_education_fields(
+        job_description
+    )
+
+    education_score = 10
+
+    # --------------------------------------
+    # DEGREE-LEVEL RELEVANCE
+    # --------------------------------------
+
+    if required_degree_level > 0:
+        if resume_degree_level >= required_degree_level:
+            education_score += 45
+
+        elif (
+            resume_degree_level > 0
+            and resume_degree_level ==
+            required_degree_level - 1
+        ):
+            # Partial credit when the degree is one level below.
+            education_score += 20
+
+    elif resume_degree_level > 0:
+        # The JD does not specify a degree, but the candidate
+        # still receives moderate education evidence credit.
+        education_score += 30
+
+    # --------------------------------------
+    # STUDY-FIELD RELEVANCE
+    # --------------------------------------
+
+    if required_fields:
+        matching_fields = (
+            resume_fields & required_fields
+        )
+
+        field_match_ratio = (
+            len(matching_fields) /
+            len(required_fields)
+        )
+
+        education_score += round(
+            field_match_ratio * 25
+        )
+
+    elif resume_fields:
+        education_score += 15
+
+    # --------------------------------------
+    # RELEVANT COURSEWORK AND SKILLS
+    # --------------------------------------
+
+    education_skill_matches = []
+
+    for skill in job_skills or []:
+        if re.search(
+            rf"(?<!\w){re.escape(skill)}(?!\w)",
+            education_text,
+            flags=re.IGNORECASE,
+        ):
+            education_skill_matches.append(skill)
+
+    if job_skills:
+        coursework_ratio = (
+            len(education_skill_matches) /
+            len(job_skills)
+        )
+
+        education_score += round(
+            coursework_ratio * 15
+        )
+
+    coursework_terms = [
+        "coursework",
+        "relevant coursework",
+        "subjects",
+        "curriculum",
+        "academic project",
+        "capstone",
+        "thesis",
+        "research",
+    ]
+
+    if any(
+        term in education_text.lower()
+        for term in coursework_terms
+    ):
+        education_score += 5
+
+    # --------------------------------------
+    # ACADEMIC EVIDENCE
+    # --------------------------------------
+
+    has_academic_result = bool(
+        re.search(
+            r"\b(?:cgpa|gpa)\s*[:\-]?\s*\d+(?:\.\d+)?",
+            education_text,
+            flags=re.IGNORECASE,
+        )
+        or re.search(
+            r"\b\d+(?:\.\d+)?\s*%",
+            education_text,
+        )
+    )
+
+    if has_academic_result:
+        education_score += 5
+
+    return max(
+        0,
+        min(95, round(education_score)),
+    )
+
+
 def calculate_score_breakdown(
     resume_text,
     job_description,
@@ -931,165 +1985,48 @@ def calculate_score_breakdown(
     4. Projects Relevance
     """
 
-    resume_lower = (resume_text or "").lower()
-    job_lower = (job_description or "").lower()
-
     # --------------------------------------
     # 1. SKILLS MATCH SCORE
     # --------------------------------------
 
-    if job_skills:
-        skills_score = round(
-            len(matching_skills) / len(job_skills) * 100
-        )
-    else:
-        skills_score = 0
-
-    skills_score = max(0, min(100, skills_score))
+    skills_score = calculate_intelligent_skills_score(
+        resume_text,
+        job_description,
+        job_skills,
+    )
 
     # --------------------------------------
     # 2. EXPERIENCE RELEVANCE SCORE
     # --------------------------------------
 
-    experience_keywords = [
-        "experience",
-        "internship",
-        "intern",
-        "worked",
-        "developed",
-        "implemented",
-        "built",
-        "designed",
-        "deployed",
-        "professional",
-    ]
-
-    resume_experience_count = sum(
-        1
-        for keyword in experience_keywords
-        if keyword in resume_lower
+    experience_score = calculate_experience_relevance_score(
+        resume_text,
+        job_description,
+        job_skills,
     )
 
-    job_experience_count = sum(
-        1
-        for keyword in experience_keywords
-        if keyword in job_lower
-    )
-
-    if job_experience_count > 0:
-        experience_score = round(
-            min(
-                resume_experience_count /
-                job_experience_count,
-                1,
-            ) * 100
-        )
-    else:
-        experience_score = min(
-            resume_experience_count * 20,
-            100,
-        )
-
-# --------------------------------------
+    # --------------------------------------
     # 3. EDUCATION MATCH SCORE
     # --------------------------------------
-
-    education_keywords = [
-        "b.tech",
-        "btech",
-        "bachelor",
-        "degree",
-        "engineering",
-        "computer science",
-        "artificial intelligence",
-        "machine learning",
-        "m.tech",
-        "master",
-    ]
-
-    required_education = [
-        keyword
-        for keyword in education_keywords
-        if keyword in job_lower
-    ]
-
-    resume_education = [
-        keyword
-        for keyword in education_keywords
-        if keyword in resume_lower
-    ]
-
-    if required_education:
-
-        matched_education = [
-            keyword
-            for keyword in required_education
-            if keyword in resume_lower
-        ]
-
-        education_score = round(
-            len(matched_education) /
-            len(required_education) *
-            100
-        )
-
-    elif resume_education:
-
-        education_score = 100
-
-    else:
-
-        education_score = 0
+    education_score = calculate_education_match_score(
+        resume_text,
+        job_description,
+        job_skills,
+    )
 
     # --------------------------------------
     # 4. PROJECTS RELEVANCE SCORE
     # --------------------------------------
 
-    project_keywords = [
-        "project",
-        "projects",
-        "developed",
-        "built",
-        "created",
-        "implemented",
-        "application",
-        "system",
-        "website",
-        "model",
-    ]
-
-    resume_project_count = sum(
-        1
-        for keyword in project_keywords
-        if keyword in resume_lower
+    projects_score = calculate_projects_relevance_score(
+        resume_text,
+        job_description,
+        job_skills,
     )
 
-    job_project_count = sum(
-        1
-        for keyword in project_keywords
-        if keyword in job_lower
-    )
-
-    if job_project_count > 0:
-
-        projects_score = round(
-            min(
-                resume_project_count /
-                job_project_count,
-                1,
-            ) * 100
-        )
-
-    else:
-
-        projects_score = min(
-            resume_project_count * 15,
-            100,
-        )
-
-# --------------------------------------
-# FINAL BREAKDOWN
-# --------------------------------------
+    # --------------------------------------
+    # FINAL BREAKDOWN
+    # --------------------------------------
 
     return {
         "skills": max(0, min(100, skills_score)),
@@ -1099,73 +2036,197 @@ def calculate_score_breakdown(
     }
 
 
+def calculate_weighted_overall_score(score_breakdown):
+    """
+    Calculate the final resume score using the four improved
+    category scores.
+
+    Final weights:
+    Skills: 40%
+    Experience: 30%
+    Projects: 20%
+    Education: 10%
+    """
+
+    category_weights = {
+        "skills": 0.40,
+        "experience": 0.30,
+        "projects": 0.20,
+        "education": 0.10,
+    }
+
+    weighted_score = sum(
+        max(
+            0,
+            min(
+                100,
+                score_breakdown.get(category, 0),
+            ),
+        ) * weight
+        for category, weight in category_weights.items()
+    )
+
+    final_score = round(weighted_score)
+
+    return max(
+        0,
+        min(100, final_score),
+    )
+
+
 def generate_targeted_recommendations(
     score_breakdown,
     missing_skills,
 ):
     """
-    Generate focused improvement recommendations
-    using the four resume score categories.
+    Generate category-specific and prioritized recommendations.
+
+    Recommendations use:
+    - Category scores
+    - Missing job skills
+    - Category importance in the weighted overall score
     """
+
+    scores = {
+        "skills": score_breakdown.get("skills", 0),
+        "experience": score_breakdown.get("experience", 0),
+        "education": score_breakdown.get("education", 0),
+        "projects": score_breakdown.get("projects", 0),
+    }
+
+    category_weights = {
+        "skills": 0.40,
+        "experience": 0.30,
+        "projects": 0.20,
+        "education": 0.10,
+    }
+
+    clean_missing_skills = [
+        str(skill).strip()
+        for skill in missing_skills or []
+        if str(skill).strip()
+    ]
+
+    priority_skills = clean_missing_skills[:5]
+
+    if priority_skills:
+        missing_skills_text = ", ".join(
+            priority_skills
+        )
+    else:
+        missing_skills_text = ""
 
     recommendations = []
 
-    skills_score = score_breakdown.get("skills", 0)
-    experience_score = score_breakdown.get("experience", 0)
-    education_score = score_breakdown.get("education", 0)
-    projects_score = score_breakdown.get("projects", 0)
+    # --------------------------------------
+    # 1. SKILLS RECOMMENDATION
+    # --------------------------------------
 
-    # 1. SKILLS
-    if skills_score < 60:
-        if missing_skills:
-            priority_skills = ", ".join(missing_skills[:5])
+    skills_score = scores["skills"]
+
+    if skills_score == 0:
+        if missing_skills_text:
             skills_message = (
-                "Your skills match needs improvement. "
-                f"Focus on learning or demonstrating: {priority_skills}."
+                "No strong evidence was found for the main job skills. "
+                f"Add genuine knowledge or practical evidence for: "
+                f"{missing_skills_text}. Do not add skills you have "
+                "not actually learned or used."
             )
         else:
             skills_message = (
-                "Strengthen the technical skills section and clearly "
-                "mention job-relevant tools and technologies."
+                "No clear job-relevant technical skills were detected. "
+                "Create a dedicated Skills section and support important "
+                "skills with project or experience evidence."
+            )
+
+    elif skills_score < 50:
+        if missing_skills_text:
+            skills_message = (
+                f"Your skills alignment is currently low. Prioritize "
+                f"learning and demonstrating: {missing_skills_text}. "
+                "Show each genuine skill inside a project, internship "
+                "or achievement statement."
+            )
+        else:
+            skills_message = (
+                "Your resume mentions some relevant skills, but the "
+                "evidence is weak. Describe where and how you used each "
+                "important technology."
             )
 
     elif skills_score < 80:
-        skills_message = (
-            "Your skills match is good, but you can improve it by "
-            "adding evidence of the remaining job-relevant skills."
-        )
+        if missing_skills_text:
+            skills_message = (
+                f"Your skills match is promising. To improve it, focus "
+                f"on the remaining requirements: {missing_skills_text}. "
+                "Add practical evidence instead of listing keywords only."
+            )
+        else:
+            skills_message = (
+                "Most required skills are present. Strengthen the score "
+                "by connecting those skills to specific responsibilities, "
+                "projects and measurable results."
+            )
 
     else:
-        skills_message = (
-            "Your technical skills are strongly aligned with the job "
-            "requirements. Keep them clearly visible in your resume."
-        )
+        if missing_skills_text:
+            skills_message = (
+                f"Your technical alignment is strong. The remaining "
+                f"gaps are: {missing_skills_text}. Address only the "
+                "skills that are genuinely relevant to your background."
+            )
+        else:
+            skills_message = (
+                "Your technical skills are strongly aligned with the "
+                "job. Keep the most important skills visible and support "
+                "them with recent practical evidence."
+            )
 
     recommendations.append({
         "category": "Skills",
         "icon": "💻",
         "score": skills_score,
         "message": skills_message,
+        "priority_impact": round(
+            (100 - skills_score) *
+            category_weights["skills"],
+            2,
+        ),
     })
 
-    # 2. EXPERIENCE
-    if experience_score < 50:
+    # --------------------------------------
+    # 2. EXPERIENCE RECOMMENDATION
+    # --------------------------------------
+
+    experience_score = scores["experience"]
+
+    if experience_score == 0:
         experience_message = (
-            "Add stronger experience evidence through internships, "
-            "practical work, freelancing, leadership activities or "
-            "relevant project responsibilities."
+            "No professional Experience or Internship section was "
+            "detected. Add internships, freelance work, training or "
+            "practical responsibilities with role names, dates, "
+            "technologies used and outcomes."
+        )
+
+    elif experience_score < 50:
+        experience_message = (
+            "Your experience evidence is limited. Clearly mention your "
+            "role, organization, employment dates and responsibilities. "
+            "Connect the work directly to the job's required skills."
         )
 
     elif experience_score < 80:
         experience_message = (
-            "Improve your experience section by describing your "
-            "responsibilities, technologies used and measurable results."
+            "Your experience is partly relevant. Improve it with strong "
+            "action verbs and measurable achievements such as performance "
+            "improvements, users supported or tasks automated."
         )
 
     else:
         experience_message = (
-            "Your experience section shows good relevance. Keep "
-            "achievements specific and quantify results where possible."
+            "Your experience is strongly relevant. Keep the best "
+            "achievements near the top and quantify their impact with "
+            "percentages, time saved, users or delivered applications."
         )
 
     recommendations.append({
@@ -1173,25 +2234,46 @@ def generate_targeted_recommendations(
         "icon": "💼",
         "score": experience_score,
         "message": experience_message,
+        "priority_impact": round(
+            (100 - experience_score) *
+            category_weights["experience"],
+            2,
+        ),
     })
 
-    # 3. EDUCATION
-    if education_score < 50:
+    # --------------------------------------
+    # 3. EDUCATION RECOMMENDATION
+    # --------------------------------------
+
+    education_score = scores["education"]
+
+    if education_score == 0:
         education_message = (
-            "Make your education details clearer. Mention your degree, "
-            "specialization, institution and relevant coursework."
+            "No usable Education section was detected. Add your degree, "
+            "specialization, institution, study period and relevant "
+            "coursework or academic achievements."
+        )
+
+    elif education_score < 50:
+        education_message = (
+            "Your education has limited alignment with this role. "
+            "Highlight relevant coursework, certifications, academic "
+            "projects and technical subjects without changing your "
+            "actual degree information."
         )
 
     elif education_score < 80:
         education_message = (
-            "Your education is partly aligned. Highlight relevant "
-            "coursework, certifications or academic work."
+            "Your degree level is useful, but the field or coursework "
+            "is only partly aligned. Add relevant subjects, certifications "
+            "and academic work connected to the job."
         )
 
     else:
         education_message = (
-            "Your education information is well aligned. Keep the most "
-            "job-relevant academic details easy to identify."
+            "Your education is strongly aligned. Keep the degree, "
+            "specialization, CGPA and most relevant coursework clear "
+            "and easy for recruiters to scan."
         )
 
     recommendations.append({
@@ -1199,28 +2281,60 @@ def generate_targeted_recommendations(
         "icon": "🎓",
         "score": education_score,
         "message": education_message,
+        "priority_impact": round(
+            (100 - education_score) *
+            category_weights["education"],
+            2,
+        ),
     })
 
-    # 4. PROJECTS
-    if projects_score < 50:
+    # --------------------------------------
+    # 4. PROJECTS RECOMMENDATION
+    # --------------------------------------
+
+    projects_score = scores["projects"]
+
+    if projects_score == 0:
+        if missing_skills_text:
+            projects_message = (
+                "No genuine Projects section was detected. Build or add "
+                f"a relevant project that honestly demonstrates some of "
+                f"these job requirements: {missing_skills_text}. Include "
+                "the problem, your contribution, technologies and result."
+            )
+        else:
+            projects_message = (
+                "No genuine Projects section was detected. Add a relevant "
+                "project explaining the problem, your contribution, "
+                "technologies used and measurable outcome."
+            )
+
+    elif projects_score < 50:
         projects_message = (
-            "Add more relevant projects that demonstrate the skills "
-            "required for this role. Mention the problem, technologies "
-            "and outcome."
+            "Your projects have limited job relevance. Improve their "
+            "descriptions by explaining what you built, your individual "
+            "contribution, the technologies used and the final outcome."
         )
 
     elif projects_score < 80:
-        projects_message = (
-            "Your projects provide useful evidence, but they can be "
-            "stronger. Add measurable outcomes and explain your "
-            "individual contribution."
-        )
+        if missing_skills_text:
+            projects_message = (
+                f"Your projects provide useful evidence. Strengthen them "
+                f"with measurable results and, where truthful, demonstrate "
+                f"these remaining skills: {missing_skills_text}."
+            )
+        else:
+            projects_message = (
+                "Your projects are relevant. Strengthen them with metrics "
+                "such as accuracy, response time, users, records processed "
+                "or performance improvements."
+            )
 
     else:
         projects_message = (
-            "Your projects show strong relevance. Keep the most "
-            "important projects prominent and include technologies, "
-            "responsibilities and results."
+            "Your projects are strongly relevant. Keep the best project "
+            "first and clearly show its technologies, architecture, your "
+            "contribution and measurable result."
         )
 
     recommendations.append({
@@ -1228,7 +2342,19 @@ def generate_targeted_recommendations(
         "icon": "🚀",
         "score": projects_score,
         "message": projects_message,
+        "priority_impact": round(
+            (100 - projects_score) *
+            category_weights["projects"],
+            2,
+        ),
     })
+
+    # Display the recommendation with the greatest possible
+    # effect on the weighted overall score first.
+    recommendations.sort(
+        key=lambda item: item["priority_impact"],
+        reverse=True,
+    )
 
     return recommendations
 
@@ -1391,90 +2517,207 @@ def generate_final_recommendation(
 
 
 def generate_interview_questions(
+    resume_text,
+    job_description,
     resume_skills,
     matching_skills,
     missing_skills,
+    job_skills,
 ):
     """
-    Generate interview questions based on:
-    - skills detected in the resume
-    - matching job skills
-    - missing job skills
+    Generate technical, project/resume, skill-gap and role/JD questions.
     """
 
     technical_questions = []
     resume_questions = []
     job_questions = []
 
-    # --------------------------------------------------
-    # TECHNICAL QUESTIONS
-    # --------------------------------------------------
+    def add_unique(question_list, question):
+        clean_question = str(question).strip()
+        if clean_question and clean_question not in question_list:
+            question_list.append(clean_question)
 
-    for skill in matching_skills[:5]:
+    role_patterns = [
+        ("Python Developer", ["python developer"]),
+        ("Backend Developer", ["backend developer", "back-end developer"]),
+        ("Frontend Developer", ["frontend developer", "front-end developer"]),
+        ("Full Stack Developer", ["full stack developer", "full-stack developer"]),
+        ("Machine Learning Engineer", ["machine learning engineer", "ml engineer"]),
+        ("AI Engineer", ["ai engineer", "artificial intelligence engineer"]),
+        ("Data Scientist", ["data scientist"]),
+        ("Data Analyst", ["data analyst"]),
+        ("Software Engineer", ["software engineer"]),
+        ("DevOps Engineer", ["devops engineer"]),
+        ("Cloud Engineer", ["cloud engineer"]),
+        ("Web Developer", ["web developer"]),
+    ]
 
-        technical_questions.append(
-            f"Explain your practical experience with {skill}."
-        )
+    job_lower = (job_description or "").lower()
+    target_role = "this role"
+    for role_name, aliases in role_patterns:
+        if any(alias in job_lower for alias in aliases):
+            target_role = role_name
+            break
 
-        technical_questions.append(
-            f"What important concepts should a developer know in {skill}?"
-        )
+    skill_question_bank = {
+        "python": [
+            "Explain the difference between a Python list, tuple, set and dictionary.",
+            "How do you handle exceptions and debug errors in a Python application?",
+        ],
+        "flask": [
+            "Explain the request-response lifecycle in a Flask application.",
+            "How would you structure and secure a production Flask application?",
+        ],
+        "sql": [
+            "Explain the difference between INNER JOIN and LEFT JOIN with an example.",
+            "How do indexes improve SQL query performance, and when can they become costly?",
+        ],
+        "rest api": [
+            "What makes an API RESTful, and which HTTP methods support CRUD operations?",
+            "How would you handle authentication, validation and errors in a REST API?",
+        ],
+        "aws": [
+            "Which AWS services would you use to deploy a Flask application and why?",
+            "How would you monitor, secure and scale an application deployed on AWS?",
+        ],
+        "mongodb": [
+            "When would you choose MongoDB instead of a relational database?",
+            "How would you design indexes for a frequently queried MongoDB collection?",
+        ],
+        "machine learning": [
+            "How do you detect and reduce overfitting in a machine-learning model?",
+            "Which evaluation metrics suit an imbalanced classification problem?",
+        ],
+        "react": [
+            "Explain React state, props and the purpose of hooks.",
+            "How would you prevent unnecessary component re-renders?",
+        ],
+        "javascript": [
+            "Explain promises, async/await and error handling in JavaScript.",
+        ],
+        "docker": [
+            "How would you containerize a Python web application using Docker?",
+        ],
+        "git": [
+            "Explain your Git workflow when collaborating with a development team.",
+        ],
+    }
 
-    # --------------------------------------------------
-    # RESUME-BASED QUESTIONS
-    # --------------------------------------------------
-
-    for skill in resume_skills[:5]:
-
-        resume_questions.append(
-            f"Describe a project where you used {skill}."
-        )
-
-    resume_questions.extend(
-        [
-            "What was the most challenging problem you solved in a project?",
-            "Which project on your resume are you most confident explaining?",
-            "How do you test and debug your applications?",
-        ]
-    )
-
-    # --------------------------------------------------
-    # JOB-FOCUSED QUESTIONS
-    # --------------------------------------------------
-
-    for skill in missing_skills[:5]:
-
-        job_questions.append(
-            f"This role requires {skill}. "
-            f"What do you currently know about it?"
-        )
-
-        job_questions.append(
-            f"How would you improve your knowledge of {skill} "
-            f"if you were selected for this role?"
-        )
-
-    # --------------------------------------------------
-    # FALLBACK QUESTIONS
-    # --------------------------------------------------
+    for skill in matching_skills[:6]:
+        questions = skill_question_bank.get(skill.lower())
+        if questions:
+            for question in questions[:2]:
+                add_unique(technical_questions, question)
+        else:
+            add_unique(
+                technical_questions,
+                f"Explain a practical problem you solved using {skill} and why you selected it.",
+            )
+            add_unique(
+                technical_questions,
+                f"What are the important concepts, limitations and best practices in {skill}?",
+            )
 
     if not technical_questions:
-        technical_questions = [
-            "Explain the strongest technical skill listed on your resume.",
-            "How do you approach solving a new programming problem?",
-        ]
+        add_unique(
+            technical_questions,
+            "Which technical skill is your strongest, and how have you applied it?",
+        )
+        add_unique(
+            technical_questions,
+            "How do you approach debugging an unfamiliar technical problem?",
+        )
 
-    if not resume_questions:
-        resume_questions = [
-            "Tell me about one technical project you have completed.",
-            "What was your contribution to that project?",
-        ]
+    projects_text = extract_projects_section(resume_text or "")
+    experience_text = extract_experience_section(resume_text or "")
+    project_skill_matches = [
+        skill
+        for skill in job_skills or []
+        if re.search(
+            rf"(?<!\w){re.escape(skill)}(?!\w)",
+            projects_text,
+            flags=re.IGNORECASE,
+        )
+    ]
 
-    if not job_questions:
-        job_questions = [
-            "Why are you interested in this role?",
-            "Which of your skills are most relevant to this position?",
-        ]
+    if projects_text.strip():
+        if project_skill_matches:
+            project_skill_text = ", ".join(project_skill_matches[:5])
+            add_unique(
+                resume_questions,
+                f"Choose one project where you used {project_skill_text}. Explain its architecture and your contribution.",
+            )
+        else:
+            add_unique(
+                resume_questions,
+                "Choose the project most relevant to this job and explain its architecture and your contribution.",
+            )
+        add_unique(
+            resume_questions,
+            "What was the most difficult technical problem in that project, and how did you solve it?",
+        )
+        add_unique(
+            resume_questions,
+            "How did you test the project and measure whether it solved the original problem?",
+        )
+        add_unique(
+            resume_questions,
+            "If you rebuilt the project today, what improvements would you make?",
+        )
+    else:
+        add_unique(
+            resume_questions,
+            "Your resume has no dedicated Projects section. Describe one practical or academic project that demonstrates your ability.",
+        )
+        add_unique(
+            resume_questions,
+            "What was your individual contribution, and which parts did you implement yourself?",
+        )
+
+    if experience_text.strip():
+        add_unique(
+            resume_questions,
+            "Describe your most relevant professional responsibility and how it prepared you for this position.",
+        )
+        add_unique(
+            resume_questions,
+            "Which measurable achievement from your experience are you most proud of?",
+        )
+
+    for skill in resume_skills[:3]:
+        add_unique(
+            resume_questions,
+            f"Your resume mentions {skill}. Where did you use it, what did you build, and what result did you achieve?",
+        )
+
+    for skill in missing_skills[:5]:
+        add_unique(
+            job_questions,
+            f"This {target_role} position requires {skill}. What do you currently understand about it?",
+        )
+        add_unique(
+            job_questions,
+            f"If you needed {skill} in your first month, how would you learn and apply it?",
+        )
+
+    add_unique(
+        job_questions,
+        f"Why are you interested in the {target_role} position, and what makes you suitable?",
+    )
+    if matching_skills:
+        strongest_skills_text = ", ".join(matching_skills[:4])
+        add_unique(
+            job_questions,
+            f"This role values {strongest_skills_text}. How would you combine them to solve a business problem?",
+        )
+    add_unique(
+        job_questions,
+        f"What would be your plan for the first 30 days as a {target_role}?",
+    )
+    add_unique(
+        job_questions,
+        "Which job-description requirement is most challenging for you, and how would you address it?",
+    )
 
     return {
         "technical_questions": technical_questions[:10],
@@ -1864,7 +3107,7 @@ def build_analysis_pdf(report_data):
     )
 
     story.append(score_table)
-    
+
     story.append(
         Paragraph(
             "Detailed Resume Performance",
@@ -2093,7 +3336,7 @@ def build_analysis_pdf(report_data):
             section_style,
         )
     )
-    
+
     story.append(
         Paragraph(
             f"<b>{escape(report_data['final_title'])}</b>",
@@ -2503,7 +3746,7 @@ def analysis_details(analysis_id):
         )
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
-        
+
     try:
         interview_questions = json.loads(
             analysis.interview_questions or "{}"
@@ -2850,17 +4093,15 @@ def analyze_multiple_resumes():
             job_skill_set - resume_skill_set
         )
 
-        match_score = round(
-            len(matching_skills)
-            / len(job_skill_set)
-            * 100
-        )
-
         score_breakdown = calculate_score_breakdown(
             text,
             job_description,
             matching_skills,
             job_skills,
+        )
+
+        match_score = calculate_weighted_overall_score(
+            score_breakdown
         )
 
         candidates.append(
@@ -3104,10 +4345,28 @@ def upload_resume():
             ),
         )
 
-    resume_set, job_set = set(resume_skills), set(job_skills)
-    matching_skills = sorted(resume_set & job_set)
-    missing_skills = sorted(job_set - resume_set)
-    resume_score = round(len(matching_skills) / len(job_set) * 100)
+    resume_set = set(resume_skills)
+    job_set = set(job_skills)
+
+    matching_skills = sorted(
+        resume_set & job_set
+    )
+
+    missing_skills = sorted(
+        job_set - resume_set
+    )
+
+    score_breakdown = calculate_score_breakdown(
+        text,
+        job_description,
+        matching_skills,
+        job_skills,
+    )
+
+    resume_score = calculate_weighted_overall_score(
+        score_breakdown
+    )
+
     suggestions = generate_suggestions(
         missing_skills, resume_score, resume_skills
     )
@@ -3124,22 +4383,18 @@ def upload_resume():
         missing_skills,
     )
 
-    score_breakdown = calculate_score_breakdown(
-        text,
-        job_description,
-        matching_skills,
-        job_skills,
-    )
-    
     targeted_recommendations = generate_targeted_recommendations(
         score_breakdown,
         missing_skills,
     )
 
     interview_questions = generate_interview_questions(
+        text,
+        job_description,
         resume_skills,
         matching_skills,
         missing_skills,
+        job_skills,
     )
 
     highlighted_resume_text = highlight_keywords(text, job_skills)
