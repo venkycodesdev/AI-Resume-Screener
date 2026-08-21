@@ -192,6 +192,112 @@
 
     </div>
 
+    <!-- Step 22.2: Recruiter candidate comparison -->
+    <div class="candidate-comparison-card">
+
+        <div class="candidate-comparison-heading">
+            <div>
+                <p class="section-tag">CANDIDATE COMPARISON</p>
+                <h3>Compare Every Candidate</h3>
+            </div>
+
+            <p>
+                Review the weighted overall score and all four scoring
+                categories in one place.
+            </p>
+        </div>
+
+        <div class="candidate-comparison-table-wrap">
+            <table class="candidate-comparison-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Rank</th>
+                        <th scope="col">Candidate</th>
+                        <th scope="col">Overall</th>
+                        <th scope="col">Skills</th>
+                        <th scope="col">Experience</th>
+                        <th scope="col">Education</th>
+                        <th scope="col">Projects</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for candidate in candidates %}
+                    <tr class="{% if candidate.rank == 1 %}comparison-best-row{% endif %}">
+                        <td data-label="Rank">
+                            <span class="comparison-rank-badge">
+                                {% if candidate.rank == 1 %}
+                                    🥇 #1
+                                {% elif candidate.rank == 2 %}
+                                    🥈 #2
+                                {% elif candidate.rank == 3 %}
+                                    🥉 #3
+                                {% else %}
+                                    #{{ candidate.rank }}
+                                {% endif %}
+                            </span>
+                        </td>
+
+                        <td data-label="Candidate" class="comparison-candidate-name">
+                            {{ candidate.filename }}
+                        </td>
+
+                        <td data-label="Overall">
+                            <strong class="comparison-overall-score">
+                                {{ candidate.match_score }}%
+                            </strong>
+                        </td>
+
+                        <td data-label="Skills">
+                            {{ candidate.score_breakdown.skills }}%
+                        </td>
+
+                        <td data-label="Experience">
+                            {{ candidate.score_breakdown.experience }}%
+                        </td>
+
+                        <td data-label="Education">
+                            {{ candidate.score_breakdown.education }}%
+                        </td>
+
+                        <td data-label="Projects">
+                            {{ candidate.score_breakdown.projects }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <form
+        action="{{ url_for('download_multiple_report') }}"
+        method="POST"
+        class="multiple-report-download-form"
+    >
+
+        <input
+            type="hidden"
+            name="report_candidates"
+            value="{{ report_candidates | tojson | forceescape }}"
+        >
+
+        <input
+            type="hidden"
+            name="report_job_skills"
+            value="{{ job_skills | tojson | forceescape }}"
+        >
+
+        <button
+            type="submit"
+            class="multiple-report-download-button"
+        >
+            📄 Download Recruiter PDF Report
+        </button>
+
+    </form>
+
 
     <div class="candidate-ranking-list">
 
@@ -229,9 +335,17 @@
 
                     <div>
 
-                        <span class="candidate-rank-label">
-                            Rank #{{ candidate.rank }}
-                        </span>
+                        <div class="candidate-rank-title-row">
+                            <span class="candidate-rank-label">
+                                Rank #{{ candidate.rank }}
+                            </span>
+
+                            {% if candidate.rank == 1 %}
+                            <span class="best-candidate-label">
+                                ★ Best Candidate
+                            </span>
+                            {% endif %}
+                        </div>
 
                         <h3>
                             {{ candidate.filename }}
@@ -253,6 +367,28 @@
                     </div>
 
                 </div>
+
+                {% if candidate.rank == 1 %}
+                <div class="best-candidate-summary">
+                    <div class="best-candidate-summary-icon">
+                        🏆
+                    </div>
+
+                    <div class="best-candidate-summary-content">
+                        <span>Recruiter Recommendation</span>
+                        <strong>
+                            Highest-ranked applicant with a
+                            {{ candidate.match_score }}% weighted match.
+                        </strong>
+                        <p>
+                            Skills {{ candidate.score_breakdown.skills }}% •
+                            Experience {{ candidate.score_breakdown.experience }}% •
+                            Education {{ candidate.score_breakdown.education }}% •
+                            Projects {{ candidate.score_breakdown.projects }}%
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
 
 
                 <div class="candidate-ranking-stats">
@@ -487,6 +623,86 @@
                             {% endif %}
 
                         </div>
+
+                    </div>
+
+                </div>
+
+                <div class="candidate-strengths-panel">
+                    <div class="candidate-insight-heading">
+                        <span class="candidate-insight-icon">💪</span>
+
+                        <div>
+                            <p>Candidate Strengths</p>
+                            <span>
+                                Evidence-based advantages for this role
+                            </span>
+                        </div>
+                    </div>
+
+                    <ul class="candidate-strength-list">
+                        {% for strength in candidate.strengths %}
+                        <li>
+                            <span aria-hidden="true">✓</span>
+                            <p>{{ strength }}</p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="candidate-weaknesses-panel">
+
+                    <div class="candidate-insight-heading weakness-heading">
+
+                        <span class="candidate-insight-icon weakness-icon">
+                            ⚠️
+                        </span>
+
+                        <div>
+                            <p>Candidate Weaknesses</p>
+
+                            <span>
+                                Areas that may require recruiter review
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <ul class="candidate-weakness-list">
+
+                        {% for weakness in candidate.weaknesses %}
+
+                        <li>
+                            <span aria-hidden="true">!</span>
+                            <p>{{ weakness }}</p>
+                        </li>
+
+                        {% endfor %}
+
+                    </ul>
+
+                </div>
+
+                <div class="hiring-recommendation-panel
+                            {{ candidate.hiring_recommendation.css_class }}">
+
+                    <div class="hiring-recommendation-icon">
+                        {{ candidate.hiring_recommendation.icon }}
+                    </div>
+
+                    <div class="hiring-recommendation-content">
+
+                        <span>
+                            Hiring Recommendation
+                        </span>
+
+                        <h4>
+                            {{ candidate.hiring_recommendation.label }}
+                        </h4>
+
+                        <p>
+                            {{ candidate.hiring_recommendation.message }}
+                        </p>
 
                     </div>
 

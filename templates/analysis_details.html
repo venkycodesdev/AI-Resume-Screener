@@ -500,6 +500,121 @@
 
 {% endif %}
 
+{% if analysis.analysis_type == "multiple" %}
+
+<section class="analysis-detail-card">
+
+    <div class="score-breakdown-heading">
+
+        <p class="section-tag">
+            RECRUITER INSIGHTS
+        </p>
+
+        <h2>
+            Saved Candidate Evaluation
+        </h2>
+
+        <p>
+            Review this candidate's regenerated strengths,
+            weaknesses and hiring recommendation.
+        </p>
+
+    </div>
+
+
+    <div class="candidate-strengths-panel">
+
+        <div class="candidate-insight-heading">
+
+            <span class="candidate-insight-icon">
+                💪
+            </span>
+
+            <div>
+                <p>Candidate Strengths</p>
+                <span>Evidence-based advantages</span>
+            </div>
+
+        </div>
+
+        <ul class="candidate-strength-list">
+
+            {% for strength in candidate_strengths %}
+
+            <li>
+                <span aria-hidden="true">✓</span>
+                <p>{{ strength }}</p>
+            </li>
+
+            {% endfor %}
+
+        </ul>
+
+    </div>
+
+
+    <div class="candidate-weaknesses-panel">
+
+        <div class="candidate-insight-heading weakness-heading">
+
+            <span class="candidate-insight-icon weakness-icon">
+                ⚠️
+            </span>
+
+            <div>
+                <p>Candidate Weaknesses</p>
+                <span>Areas requiring recruiter review</span>
+            </div>
+
+        </div>
+
+        <ul class="candidate-weakness-list">
+
+            {% for weakness in candidate_weaknesses %}
+
+            <li>
+                <span aria-hidden="true">!</span>
+                <p>{{ weakness }}</p>
+            </li>
+
+            {% endfor %}
+
+        </ul>
+
+    </div>
+
+
+    {% if hiring_recommendation %}
+
+    <div class="hiring-recommendation-panel
+                {{ hiring_recommendation.css_class }}">
+
+        <div class="hiring-recommendation-icon">
+            {{ hiring_recommendation.icon }}
+        </div>
+
+        <div class="hiring-recommendation-content">
+
+            <span>Hiring Recommendation</span>
+
+            <h4>
+                {{ hiring_recommendation.label }}
+            </h4>
+
+            <p>
+                {{ hiring_recommendation.message }}
+            </p>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</section>
+
+{% endif %}
+
             <!-- ======================================
                 SAVED INTERVIEW QUESTIONS
             ======================================= -->

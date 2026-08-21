@@ -220,6 +220,65 @@
                         </div>
 
 
+                        {% if analysis.analysis_type == "multiple" %}
+
+                        <div class="history-score-preview">
+
+                            <div>
+                                <span>Skills</span>
+                                <strong>
+                                    {{ analysis.score_breakdown_data.get('skills', 0) }}%
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Experience</span>
+                                <strong>
+                                    {{ analysis.score_breakdown_data.get('experience', 0) }}%
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Education</span>
+                                <strong>
+                                    {{ analysis.score_breakdown_data.get('education', 0) }}%
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Projects</span>
+                                <strong>
+                                    {{ analysis.score_breakdown_data.get('projects', 0) }}%
+                                </strong>
+                            </div>
+
+                        </div>
+
+
+                        {% if analysis.hiring_recommendation_data %}
+
+                        <div class="history-hiring-result
+                                    {{ analysis.hiring_recommendation_data.css_class }}">
+
+                            <span>
+                                {{ analysis.hiring_recommendation_data.icon }}
+                            </span>
+
+                            <div>
+                                <small>Hiring Recommendation</small>
+
+                                <strong>
+                                    {{ analysis.hiring_recommendation_data.label }}
+                                </strong>
+                            </div>
+
+                        </div>
+
+                        {% endif %}
+
+                        {% endif %}
+
+
                         <!-- ==========================
                             SKILLS SECTION
                         =========================== -->

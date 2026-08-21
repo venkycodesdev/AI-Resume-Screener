@@ -205,7 +205,7 @@ class Analysis(db.Model):
         nullable=False,
         default="{}",
     )
-
+    
     score_breakdown = db.Column(
         db.Text,
         nullable=False,
@@ -1305,7 +1305,7 @@ def calculate_intelligent_skills_score(
         0,
         min(100, final_score),
     )
-
+    
 
 def extract_experience_section(resume_text):
     """
@@ -1623,8 +1623,8 @@ def calculate_experience_relevance_score(
         0,
         min(95, round(experience_score)),
     )
-
-
+    
+    
 def extract_education_section(resume_text):
     """
     Extract only the Education section from the resume.
@@ -2072,6 +2072,243 @@ def calculate_weighted_overall_score(score_breakdown):
         0,
         min(100, final_score),
     )
+
+
+def generate_candidate_strengths(
+    score_breakdown,
+    matching_skills,
+):
+    """
+    Generate concise recruiter-facing strengths using only
+    evidence already detected by the scoring system.
+    """
+
+    scores = {
+        "skills": score_breakdown.get("skills", 0),
+        "experience": score_breakdown.get("experience", 0),
+        "education": score_breakdown.get("education", 0),
+        "projects": score_breakdown.get("projects", 0),
+    }
+
+    clean_matching_skills = [
+        str(skill).strip()
+        for skill in matching_skills or []
+        if str(skill).strip()
+    ]
+
+    strengths = []
+
+    if clean_matching_skills:
+        highlighted_skills = ", ".join(
+            clean_matching_skills[:5]
+        )
+        strengths.append(
+            f"Matches {len(clean_matching_skills)} priority job "
+            f"skill(s), including {highlighted_skills}."
+        )
+
+    if scores["skills"] >= 75:
+        strengths.append(
+            f"Strong technical alignment with a "
+            f"{scores['skills']}% skills-match score."
+        )
+
+    if scores["experience"] >= 65:
+        strengths.append(
+            f"Relevant professional evidence produced a "
+            f"{scores['experience']}% experience score."
+        )
+
+    if scores["education"] >= 65:
+        strengths.append(
+            f"Education and qualifications align well with "
+            f"the role at {scores['education']}%."
+        )
+
+    if scores["projects"] >= 65:
+        strengths.append(
+            f"Relevant project evidence demonstrates practical "
+            f"ability with a {scores['projects']}% project score."
+        )
+
+    if not strengths:
+        category_labels = {
+            "skills": "Technical skills",
+            "experience": "Experience",
+            "education": "Education",
+            "projects": "Projects",
+        }
+
+        strongest_category = max(
+            scores,
+            key=scores.get,
+        )
+
+        strongest_score = scores[strongest_category]
+
+        if strongest_score > 0:
+            strengths.append(
+                f"{category_labels[strongest_category]} is the "
+                f"candidate's strongest current area at "
+                f"{strongest_score}%."
+            )
+        else:
+            strengths.append(
+                "No strong role-specific evidence was detected; "
+                "manual recruiter review is recommended."
+            )
+
+    return strengths[:4]
+
+
+def generate_candidate_weaknesses(
+    score_breakdown,
+    missing_skills,
+):
+    """
+    Generate evidence-based weaknesses for recruiter review.
+    """
+
+    scores = {
+        "skills": score_breakdown.get("skills", 0),
+        "experience": score_breakdown.get("experience", 0),
+        "education": score_breakdown.get("education", 0),
+        "projects": score_breakdown.get("projects", 0),
+    }
+
+    clean_missing_skills = [
+        str(skill).strip()
+        for skill in missing_skills or []
+        if str(skill).strip()
+    ]
+
+    weaknesses = []
+
+    if clean_missing_skills:
+        priority_missing_skills = ", ".join(
+            clean_missing_skills[:5]
+        )
+
+        weaknesses.append(
+            f"Missing {len(clean_missing_skills)} important job "
+            f"skill(s), including {priority_missing_skills}."
+        )
+
+    if scores["skills"] < 50:
+        weaknesses.append(
+            f"Technical skill alignment is currently low at "
+            f"{scores['skills']}%."
+        )
+
+    if scores["experience"] < 50:
+        if scores["experience"] == 0:
+            weaknesses.append(
+                "No strong role-relevant professional experience "
+                "evidence was detected."
+            )
+        else:
+            weaknesses.append(
+                f"Professional experience has limited relevance "
+                f"to this role at {scores['experience']}%."
+            )
+
+    if scores["education"] < 50:
+        if scores["education"] == 0:
+            weaknesses.append(
+                "No clearly relevant education or qualification "
+                "evidence was detected."
+            )
+        else:
+            weaknesses.append(
+                f"Education alignment is currently limited at "
+                f"{scores['education']}%."
+            )
+
+    if scores["projects"] < 50:
+        if scores["projects"] == 0:
+            weaknesses.append(
+                "No strong role-relevant project evidence "
+                "was detected."
+            )
+        else:
+            weaknesses.append(
+                f"Project relevance is currently limited at "
+                f"{scores['projects']}%."
+            )
+
+    if not weaknesses:
+        weaknesses.append(
+            "No major weaknesses were detected. The recruiter "
+            "should verify the candidate's claims during interview."
+        )
+
+    return weaknesses[:4]
+
+
+def generate_hiring_recommendation(
+    match_score,
+    score_breakdown,
+):
+    """
+    Generate a recruiter-friendly hiring recommendation using
+    the weighted overall score and category scores.
+    """
+
+    skills_score = score_breakdown.get("skills", 0)
+    experience_score = score_breakdown.get("experience", 0)
+    projects_score = score_breakdown.get("projects", 0)
+
+    if (
+        match_score >= 80
+        and skills_score >= 70
+        and experience_score >= 60
+    ):
+        return {
+            "label": "Strong Match",
+            "css_class": "strong-match",
+            "icon": "✅",
+            "message": (
+                "Recommended for interview. The candidate has "
+                "strong overall alignment with the role."
+            ),
+        }
+
+    if match_score >= 60:
+        return {
+            "label": "Potential Match",
+            "css_class": "potential-match",
+            "icon": "👍",
+            "message": (
+                "Consider for interview after reviewing the "
+                "candidate's weaker scoring categories."
+            ),
+        }
+
+    if (
+        match_score >= 40
+        or skills_score >= 50
+        or experience_score >= 50
+        or projects_score >= 50
+    ):
+        return {
+            "label": "Needs Review",
+            "css_class": "needs-review",
+            "icon": "🔍",
+            "message": (
+                "Manual recruiter review is recommended before "
+                "making an interview decision."
+            ),
+        }
+
+    return {
+        "label": "Low Match",
+        "css_class": "low-match",
+        "icon": "❌",
+        "message": (
+            "Not recommended for this role based on the current "
+            "resume and job-description evidence."
+        ),
+    }
 
 
 def generate_targeted_recommendations(
@@ -2541,8 +2778,14 @@ def generate_interview_questions(
         ("Python Developer", ["python developer"]),
         ("Backend Developer", ["backend developer", "back-end developer"]),
         ("Frontend Developer", ["frontend developer", "front-end developer"]),
-        ("Full Stack Developer", ["full stack developer", "full-stack developer"]),
-        ("Machine Learning Engineer", ["machine learning engineer", "ml engineer"]),
+        (
+            "Full Stack Developer",
+            ["full stack developer", "full-stack developer"],
+        ),
+        (
+            "Machine Learning Engineer",
+            ["machine learning engineer", "ml engineer"],
+        ),
         ("AI Engineer", ["ai engineer", "artificial intelligence engineer"]),
         ("Data Scientist", ["data scientist"]),
         ("Data Analyst", ["data analyst"]),
@@ -2561,32 +2804,68 @@ def generate_interview_questions(
 
     skill_question_bank = {
         "python": [
-            "Explain the difference between a Python list, tuple, set and dictionary.",
-            "How do you handle exceptions and debug errors in a Python application?",
+            (
+                "Explain the difference between a Python list, tuple, set and "
+                "dictionary."
+            ),
+            (
+                "How do you handle exceptions and debug errors in a Python "
+                "application?"
+            ),
         ],
         "flask": [
             "Explain the request-response lifecycle in a Flask application.",
-            "How would you structure and secure a production Flask application?",
+            (
+                "How would you structure and secure a production Flask "
+                "application?"
+            ),
         ],
         "sql": [
-            "Explain the difference between INNER JOIN and LEFT JOIN with an example.",
-            "How do indexes improve SQL query performance, and when can they become costly?",
+            (
+                "Explain the difference between INNER JOIN and LEFT JOIN with "
+                "an example."
+            ),
+            (
+                "How do indexes improve SQL query performance, and when can "
+                "they become costly?"
+            ),
         ],
         "rest api": [
-            "What makes an API RESTful, and which HTTP methods support CRUD operations?",
-            "How would you handle authentication, validation and errors in a REST API?",
+            (
+                "What makes an API RESTful, and which HTTP methods support "
+                "CRUD operations?"
+            ),
+            (
+                "How would you handle authentication, validation and errors "
+                "in a REST API?"
+            ),
         ],
         "aws": [
-            "Which AWS services would you use to deploy a Flask application and why?",
-            "How would you monitor, secure and scale an application deployed on AWS?",
+            (
+                "Which AWS services would you use to deploy a Flask "
+                "application and why?"
+            ),
+            (
+                "How would you monitor, secure and scale an application "
+                "deployed on AWS?"
+            ),
         ],
         "mongodb": [
             "When would you choose MongoDB instead of a relational database?",
-            "How would you design indexes for a frequently queried MongoDB collection?",
+            (
+                "How would you design indexes for a frequently queried "
+                "MongoDB collection?"
+            ),
         ],
         "machine learning": [
-            "How do you detect and reduce overfitting in a machine-learning model?",
-            "Which evaluation metrics suit an imbalanced classification problem?",
+            (
+                "How do you detect and reduce overfitting in a "
+                "machine-learning model?"
+            ),
+            (
+                "Which evaluation metrics suit an imbalanced classification "
+                "problem?"
+            ),
         ],
         "react": [
             "Explain React state, props and the purpose of hooks.",
@@ -2596,10 +2875,16 @@ def generate_interview_questions(
             "Explain promises, async/await and error handling in JavaScript.",
         ],
         "docker": [
-            "How would you containerize a Python web application using Docker?",
+            (
+                "How would you containerize a Python web application using "
+                "Docker?"
+            ),
         ],
         "git": [
-            "Explain your Git workflow when collaborating with a development team.",
+            (
+                "Explain your Git workflow when collaborating with a "
+                "development team."
+            ),
         ],
     }
 
@@ -2611,17 +2896,22 @@ def generate_interview_questions(
         else:
             add_unique(
                 technical_questions,
-                f"Explain a practical problem you solved using {skill} and why you selected it.",
+                f"Explain a practical problem you solved using {skill} and "
+                "why you selected it.",
             )
             add_unique(
                 technical_questions,
-                f"What are the important concepts, limitations and best practices in {skill}?",
+                f"What are the important concepts, limitations and best "
+                f"practices in {skill}?",
             )
 
     if not technical_questions:
         add_unique(
             technical_questions,
-            "Which technical skill is your strongest, and how have you applied it?",
+            (
+                "Which technical skill is your strongest, and how have you "
+                "applied it?"
+            ),
         )
         add_unique(
             technical_questions,
@@ -2645,70 +2935,113 @@ def generate_interview_questions(
             project_skill_text = ", ".join(project_skill_matches[:5])
             add_unique(
                 resume_questions,
-                f"Choose one project where you used {project_skill_text}. Explain its architecture and your contribution.",
+                f"Choose one project where you used {project_skill_text}. "
+                "Explain its architecture and your contribution.",
             )
         else:
             add_unique(
                 resume_questions,
-                "Choose the project most relevant to this job and explain its architecture and your contribution.",
+                (
+                    "Choose the project most relevant to this job and explain "
+                    "its "
+                    "architecture and your contribution."
+                ),
             )
         add_unique(
             resume_questions,
-            "What was the most difficult technical problem in that project, and how did you solve it?",
+            (
+                "What was the most difficult technical problem in that "
+                "project, and how did you solve it?"
+            ),
         )
         add_unique(
             resume_questions,
-            "How did you test the project and measure whether it solved the original problem?",
+            (
+                "How did you test the project and measure whether it solved "
+                "the original problem?"
+            ),
         )
         add_unique(
             resume_questions,
-            "If you rebuilt the project today, what improvements would you make?",
+            (
+                "If you rebuilt the project today, what improvements would "
+                "you make?"
+            ),
         )
     else:
         add_unique(
             resume_questions,
-            "Your resume has no dedicated Projects section. Describe one practical or academic project that demonstrates your ability.",
+            (
+                "Your resume has no dedicated Projects section. Describe one "
+                "practical or academic project that demonstrates your ability."
+            ),
         )
         add_unique(
             resume_questions,
-            "What was your individual contribution, and which parts did you implement yourself?",
+            (
+                "What was your individual contribution, and which "
+                "parts did you implement yourself?"
+            ),
         )
 
     if experience_text.strip():
         add_unique(
             resume_questions,
-            "Describe your most relevant professional responsibility and how it prepared you for this position.",
+            (
+                "Describe your most relevant professional responsibility and "
+                "how it "
+                "prepared you for this position."
+            ),
         )
         add_unique(
             resume_questions,
-            "Which measurable achievement from your experience are you most proud of?",
+            (
+                "Which measurable achievement from your experience are you "
+                "most proud of?"
+            ),
         )
 
     for skill in resume_skills[:3]:
         add_unique(
             resume_questions,
-            f"Your resume mentions {skill}. Where did you use it, what did you build, and what result did you achieve?",
+            (
+                f"Your resume mentions {skill}. Where did you use it, "
+                "what did you build, and what result did you "
+                "achieve?"
+            ),
         )
 
     for skill in missing_skills[:5]:
         add_unique(
             job_questions,
-            f"This {target_role} position requires {skill}. What do you currently understand about it?",
+            (
+                f"This {target_role} position requires {skill}. What do you "
+                "currently understand about it?"
+            ),
         )
         add_unique(
             job_questions,
-            f"If you needed {skill} in your first month, how would you learn and apply it?",
+            (
+                f"If you needed {skill} in your first month, how would "
+                "you learn and apply it?"
+            ),
         )
 
     add_unique(
         job_questions,
-        f"Why are you interested in the {target_role} position, and what makes you suitable?",
+        (
+            f"Why are you interested in the {target_role} position, and what "
+            "makes you suitable?"
+        ),
     )
     if matching_skills:
         strongest_skills_text = ", ".join(matching_skills[:4])
         add_unique(
             job_questions,
-            f"This role values {strongest_skills_text}. How would you combine them to solve a business problem?",
+            (
+                f"This role values {strongest_skills_text}. How would you "
+                "combine them to solve a business problem?"
+            ),
         )
     add_unique(
         job_questions,
@@ -2716,7 +3049,10 @@ def generate_interview_questions(
     )
     add_unique(
         job_questions,
-        "Which job-description requirement is most challenging for you, and how would you address it?",
+        (
+            "Which job-description requirement is most challenging for you, "
+            "and how would you address it?"
+        ),
     )
 
     return {
@@ -3107,7 +3443,7 @@ def build_analysis_pdf(report_data):
     )
 
     story.append(score_table)
-
+    
     story.append(
         Paragraph(
             "Detailed Resume Performance",
@@ -3336,7 +3672,7 @@ def build_analysis_pdf(report_data):
             section_style,
         )
     )
-
+    
     story.append(
         Paragraph(
             f"<b>{escape(report_data['final_title'])}</b>",
@@ -3474,6 +3810,338 @@ def build_analysis_pdf(report_data):
             normal_style,
         )
     )
+
+    document.build(
+        story,
+        onFirstPage=add_report_page_number,
+        onLaterPages=add_report_page_number,
+    )
+
+    pdf_buffer.seek(0)
+
+    return pdf_buffer
+
+
+def build_multiple_resume_pdf(
+    candidates,
+    job_skills,
+):
+    """
+    Build a recruiter-friendly multiple-resume PDF report.
+    """
+
+    pdf_buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=A4,
+        rightMargin=14 * mm,
+        leftMargin=14 * mm,
+        topMargin=16 * mm,
+        bottomMargin=22 * mm,
+        title="Multiple Resume Recruiter Report",
+        author="AI Resume Screener",
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "MultipleReportTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=21,
+        leading=27,
+        textColor=colors.HexColor("#0F172A"),
+        alignment=TA_CENTER,
+        spaceAfter=8,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "MultipleReportSubtitle",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=15,
+        textColor=colors.HexColor("#64748B"),
+        alignment=TA_CENTER,
+        spaceAfter=18,
+    )
+
+    section_style = ParagraphStyle(
+        "MultipleReportSection",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        leading=18,
+        textColor=colors.HexColor("#0369A1"),
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+
+    normal_style = ParagraphStyle(
+        "MultipleReportNormal",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=5,
+    )
+
+    small_style = ParagraphStyle(
+        "MultipleReportSmall",
+        parent=normal_style,
+        fontSize=8,
+        leading=11,
+    )
+
+    story = [
+        Paragraph("AI Resume Screener", title_style),
+        Paragraph(
+            "Multiple-Candidate Recruiter Report",
+            subtitle_style,
+        ),
+        Paragraph(
+            f"<b>Candidates analyzed:</b> {len(candidates)}",
+            normal_style,
+        ),
+        Paragraph(
+            f"<b>Job skills:</b> {create_skill_text(job_skills)}",
+            normal_style,
+        ),
+        Spacer(1, 8),
+        Paragraph("Candidate Comparison", section_style),
+    ]
+
+    comparison_data = [
+        [
+            "Rank",
+            "Candidate",
+            "Overall",
+            "Skills",
+            "Exp.",
+            "Edu.",
+            "Projects",
+        ]
+    ]
+
+    for candidate in candidates:
+        scores = candidate.get("score_breakdown", {})
+
+        comparison_data.append(
+            [
+                f"#{candidate.get('rank', '-')}",
+                Paragraph(
+                    escape(
+                        str(
+                            candidate.get(
+                                "filename",
+                                "Candidate",
+                            )
+                        )
+                    ),
+                    small_style,
+                ),
+                f"{candidate.get('match_score', 0)}%",
+                f"{scores.get('skills', 0)}%",
+                f"{scores.get('experience', 0)}%",
+                f"{scores.get('education', 0)}%",
+                f"{scores.get('projects', 0)}%",
+            ]
+        )
+
+    comparison_table = Table(
+        comparison_data,
+        repeatRows=1,
+        colWidths=[
+            12 * mm,
+            55 * mm,
+            20 * mm,
+            18 * mm,
+            18 * mm,
+            18 * mm,
+            20 * mm,
+        ],
+    )
+
+    comparison_table.setStyle(
+        TableStyle(
+            [
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#0F172A"),
+                ),
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white,
+                ),
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold",
+                ),
+                (
+                    "ALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "CENTER",
+                ),
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE",
+                ),
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.HexColor("#CBD5E1"),
+                ),
+                (
+                    "BACKGROUND",
+                    (0, 1),
+                    (-1, 1),
+                    colors.HexColor("#DCFCE7"),
+                ),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 2),
+                    (-1, -1),
+                    [
+                        colors.white,
+                        colors.HexColor("#F8FAFC"),
+                    ],
+                ),
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, -1),
+                    8,
+                ),
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7,
+                ),
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7,
+                ),
+            ]
+        )
+    )
+
+    story.append(comparison_table)
+
+    for candidate in candidates:
+        story.append(PageBreak())
+
+        recommendation = candidate.get(
+            "hiring_recommendation",
+            {},
+        )
+
+        story.append(
+            Paragraph(
+                (
+                    f"Rank #{candidate.get('rank', '-')} - "
+                    f"{escape(str(candidate.get('filename', 'Candidate')))}"
+                ),
+                section_style,
+            )
+        )
+
+        story.append(
+            Paragraph(
+                (
+                    f"<b>Overall weighted score:</b> "
+                    f"{candidate.get('match_score', 0)}%"
+                ),
+                normal_style,
+            )
+        )
+
+        story.append(
+            Paragraph(
+                (
+                    f"<b>Hiring recommendation:</b> "
+                    f"{escape(str(recommendation.get(
+                        'label', 'Needs Review'
+                    )))}"
+                ),
+                normal_style,
+            )
+        )
+
+        story.append(
+            Paragraph(
+                escape(
+                    str(
+                        recommendation.get(
+                            "message",
+                            "Manual recruiter review is recommended.",
+                        )
+                    )
+                ),
+                normal_style,
+            )
+        )
+
+        story.append(
+            Paragraph("<b>Matching skills</b>", normal_style)
+        )
+        story.append(
+            Paragraph(
+                create_skill_text(
+                    candidate.get("matching_skills", [])
+                ),
+                normal_style,
+            )
+        )
+
+        story.append(
+            Paragraph("<b>Missing skills</b>", normal_style)
+        )
+        story.append(
+            Paragraph(
+                create_skill_text(
+                    candidate.get("missing_skills", [])
+                ),
+                normal_style,
+            )
+        )
+
+        story.append(
+            Paragraph("Candidate Strengths", section_style)
+        )
+
+        for strength in candidate.get("strengths", []):
+            story.append(
+                Paragraph(
+                    f"&bull; {escape(str(strength))}",
+                    normal_style,
+                )
+            )
+
+        story.append(
+            Paragraph("Candidate Weaknesses", section_style)
+        )
+
+        for weakness in candidate.get("weaknesses", []):
+            story.append(
+                Paragraph(
+                    f"&bull; {escape(str(weakness))}",
+                    normal_style,
+                )
+            )
 
     document.build(
         story,
@@ -3715,6 +4383,24 @@ def history():
             )
         except (json.JSONDecodeError, TypeError):
             analysis.missing_skills_list = []
+
+        try:
+            analysis.score_breakdown_data = json.loads(
+                analysis.score_breakdown or "{}"
+            )
+        except (json.JSONDecodeError, TypeError):
+            analysis.score_breakdown_data = {}
+
+        if analysis.analysis_type == "multiple":
+            analysis.hiring_recommendation_data = (
+                generate_hiring_recommendation(
+                    analysis.match_score,
+                    analysis.score_breakdown_data,
+                )
+            )
+        else:
+            analysis.hiring_recommendation_data = None
+
     return render_template("history.html", analyses=analyses)
 
 
@@ -3746,7 +4432,7 @@ def analysis_details(analysis_id):
         )
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
-
+        
     try:
         interview_questions = json.loads(
             analysis.interview_questions or "{}"
@@ -3761,6 +4447,26 @@ def analysis_details(analysis_id):
     except (json.JSONDecodeError, TypeError):
         score_breakdown = {}
 
+    candidate_strengths = []
+    candidate_weaknesses = []
+    hiring_recommendation = None
+
+    if analysis.analysis_type == "multiple":
+        candidate_strengths = generate_candidate_strengths(
+            score_breakdown,
+            matching_skills,
+        )
+
+        candidate_weaknesses = generate_candidate_weaknesses(
+            score_breakdown,
+            missing_skills,
+        )
+
+        hiring_recommendation = generate_hiring_recommendation(
+            analysis.match_score,
+            score_breakdown,
+        )
+
     return render_template(
         "analysis_details.html",
         analysis=analysis,
@@ -3769,6 +4475,9 @@ def analysis_details(analysis_id):
         detected_skills=detected_skills,
         interview_questions=interview_questions,
         score_breakdown=score_breakdown,
+        candidate_strengths=candidate_strengths,
+        candidate_weaknesses=candidate_weaknesses,
+        hiring_recommendation=hiring_recommendation,
     )
 
 
@@ -4104,6 +4813,30 @@ def analyze_multiple_resumes():
             score_breakdown
         )
 
+        candidate_strengths = generate_candidate_strengths(
+            score_breakdown,
+            matching_skills,
+        )
+        
+        candidate_weaknesses = generate_candidate_weaknesses(
+            score_breakdown,
+            missing_skills,
+        )
+        
+        hiring_recommendation = generate_hiring_recommendation(
+            match_score,
+            score_breakdown,
+        )
+
+        candidate_interview_questions = generate_interview_questions(
+            text,
+            job_description,
+            resume_skills,
+            matching_skills,
+            missing_skills,
+            job_skills,
+        )
+
         candidates.append(
             {
                 "filename": filename,
@@ -4124,6 +4857,10 @@ def analyze_multiple_resumes():
                 "missing_skills": missing_skills,
                 "match_score": match_score,
                 "score_breakdown": score_breakdown,
+                "strengths": candidate_strengths,
+                "weaknesses": candidate_weaknesses,
+                "hiring_recommendation": hiring_recommendation,
+                "interview_questions": candidate_interview_questions,
             }
         )
 
@@ -4138,6 +4875,23 @@ def analyze_multiple_resumes():
         start=1,
     ):
         candidate["rank"] = rank
+
+    report_candidates = [
+        {
+            "rank": candidate["rank"],
+            "filename": candidate["filename"],
+            "match_score": candidate["match_score"],
+            "score_breakdown": candidate["score_breakdown"],
+            "matching_skills": candidate["matching_skills"],
+            "missing_skills": candidate["missing_skills"],
+            "strengths": candidate["strengths"],
+            "weaknesses": candidate["weaknesses"],
+            "hiring_recommendation": candidate[
+                "hiring_recommendation"
+            ],
+        }
+        for candidate in candidates
+    ]
 
     # Save candidate results in history.
     try:
@@ -4160,6 +4914,9 @@ def analyze_multiple_resumes():
                 candidate_rank=candidate["rank"],
                 score_breakdown=json.dumps(
                     candidate["score_breakdown"]
+                ),
+                interview_questions=json.dumps(
+                    candidate["interview_questions"]
                 ),
             )
 
@@ -4185,6 +4942,7 @@ def analyze_multiple_resumes():
         "multiple_resume.html",
         extraction_success=True,
         candidates=candidates,
+        report_candidates=report_candidates,
         uploaded_names=[
             candidate["filename"]
             for candidate in candidates
@@ -4518,6 +5276,71 @@ def download_report():
         mimetype="application/pdf",
         as_attachment=True,
         download_name=f"{safe_name}_analysis_report.pdf",
+    )
+
+
+@app.route(
+    "/download-multiple-report",
+    methods=["POST"],
+)
+@login_required
+def download_multiple_report():
+    try:
+        candidates = json.loads(
+            request.form.get(
+                "report_candidates",
+                "[]",
+            )
+        )
+
+        job_skills = json.loads(
+            request.form.get(
+                "report_job_skills",
+                "[]",
+            )
+        )
+
+    except (json.JSONDecodeError, TypeError):
+        flash(
+            "The recruiter report data is invalid. "
+            "Please analyze the resumes again.",
+            "danger",
+        )
+        return redirect(url_for("multiple_resume"))
+
+    if not isinstance(candidates, list) or not candidates:
+        flash(
+            "No candidate results were found for the report.",
+            "warning",
+        )
+        return redirect(url_for("multiple_resume"))
+
+    valid_candidates = [
+        candidate
+        for candidate in candidates
+        if isinstance(candidate, dict)
+    ]
+
+    if not valid_candidates:
+        flash(
+            "No valid candidate data was found for the report.",
+            "warning",
+        )
+        return redirect(url_for("multiple_resume"))
+
+    if not isinstance(job_skills, list):
+        job_skills = []
+
+    pdf_buffer = build_multiple_resume_pdf(
+        valid_candidates,
+        job_skills,
+    )
+
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="multiple_resume_recruiter_report.pdf",
     )
 
 

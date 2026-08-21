@@ -7028,3 +7028,732 @@ RESPONSIVE
     display: inline-block;
 }
 
+/* ==========================================
+   DAY 12 - STEP 22.2 CANDIDATE COMPARISON
+========================================== */
+
+.candidate-comparison-card {
+    margin: 32px 0 38px;
+    padding: 28px;
+    overflow: hidden;
+    background: #111a2e;
+    border: 1px solid #334155;
+    border-radius: 22px;
+}
+
+.candidate-comparison-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.candidate-comparison-heading h3 {
+    margin-top: 7px;
+    color: #f8fafc;
+    font-size: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+.candidate-comparison-heading > p {
+    max-width: 520px;
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+.candidate-comparison-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #334155;
+    border-radius: 16px;
+}
+
+.candidate-comparison-table {
+    width: 100%;
+    min-width: 850px;
+    border-collapse: collapse;
+    background: #0f172a;
+}
+
+.candidate-comparison-table th,
+.candidate-comparison-table td {
+    padding: 17px 16px;
+    border-bottom: 1px solid #2d3b50;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.candidate-comparison-table th {
+    color: #93c5fd;
+    background: #172238;
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.candidate-comparison-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.candidate-comparison-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.candidate-comparison-table tbody tr:hover {
+    background: #172238;
+}
+
+.candidate-comparison-table .comparison-best-row {
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.comparison-candidate-name {
+    max-width: 280px;
+    overflow-wrap: anywhere;
+    color: #f8fafc;
+    font-weight: 700;
+    text-align: left !important;
+}
+
+.comparison-rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    padding: 7px 10px;
+    color: #e2e8f0;
+    background: #1e293b;
+    border: 1px solid #3b4b63;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.comparison-best-row .comparison-rank-badge {
+    color: #facc15;
+    border-color: #eab308;
+}
+
+.comparison-overall-score {
+    color: #38bdf8;
+    font-size: 1.15rem;
+}
+
+@media (max-width: 850px) {
+    .candidate-comparison-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 600px) {
+    .candidate-comparison-card {
+        margin: 24px 0 30px;
+        padding: 18px;
+        border-radius: 18px;
+    }
+
+    .candidate-comparison-table-wrap {
+        overflow: visible;
+        border: 0;
+    }
+
+    .candidate-comparison-table,
+    .candidate-comparison-table tbody,
+    .candidate-comparison-table tr,
+    .candidate-comparison-table td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .candidate-comparison-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .candidate-comparison-table tbody tr {
+        margin-bottom: 16px;
+        padding: 8px 14px;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 14px;
+    }
+
+    .candidate-comparison-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .candidate-comparison-table th,
+    .candidate-comparison-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 12px 0;
+        border-bottom: 1px solid #273449;
+        text-align: right;
+    }
+
+    .candidate-comparison-table td::before {
+        content: attr(data-label);
+        color: #94a3b8;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .candidate-comparison-table .comparison-candidate-name {
+        max-width: none;
+        text-align: right !important;
+    }
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.3 BEST CANDIDATE
+========================================== */
+
+.candidate-rank-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 7px;
+}
+
+.candidate-rank-title-row .candidate-rank-label {
+    margin-bottom: 0;
+}
+
+.best-candidate-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 11px;
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.1);
+    border: 1px solid rgba(250, 204, 21, 0.7);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rank-first {
+    position: relative;
+    overflow: hidden;
+    border-color: #facc15;
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.12),
+                0 18px 45px rgba(250, 204, 21, 0.08);
+}
+
+.rank-first::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: linear-gradient(180deg, #facc15, #f59e0b);
+}
+
+.best-candidate-summary {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 0 0 22px;
+    padding: 16px 18px;
+    background: linear-gradient(
+        135deg,
+        rgba(250, 204, 21, 0.12),
+        rgba(245, 158, 11, 0.05)
+    );
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    border-radius: 14px;
+}
+
+.best-candidate-summary-icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    place-items: center;
+    background: #0f172a;
+    border: 1px solid rgba(250, 204, 21, 0.5);
+    border-radius: 13px;
+    font-size: 1.5rem;
+}
+
+.best-candidate-summary-content {
+    display: grid;
+    gap: 4px;
+}
+
+.best-candidate-summary-content > span {
+    color: #facc15;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.best-candidate-summary-content strong {
+    color: #f8fafc;
+    line-height: 1.45;
+}
+
+.best-candidate-summary-content p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+    .best-candidate-summary {
+        align-items: flex-start;
+        padding: 14px;
+    }
+
+    .best-candidate-summary-icon {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+        font-size: 1.25rem;
+    }
+
+    .best-candidate-summary-content p {
+        font-size: 0.82rem;
+    }
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.4 CANDIDATE STRENGTHS
+========================================== */
+
+.candidate-strengths-panel {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    border-radius: 16px;
+}
+
+.candidate-insight-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.candidate-insight-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    background: #0f172a;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    border-radius: 12px;
+    font-size: 1.2rem;
+}
+
+.candidate-insight-heading p {
+    margin: 0 0 3px;
+    color: #6ee7b7;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.candidate-insight-heading div > span {
+    color: #94a3b8;
+    font-size: 0.84rem;
+}
+
+.candidate-strength-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.candidate-strength-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.candidate-strength-list li > span {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    color: #052e25;
+    background: #34d399;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.candidate-strength-list p {
+    margin: 0;
+    color: #dbeafe;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+    .candidate-strength-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .candidate-strengths-panel {
+        padding: 15px;
+    }
+
+    .candidate-strength-list li {
+        padding: 11px;
+    }
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.5 CANDIDATE WEAKNESSES
+========================================== */
+
+.candidate-weaknesses-panel {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 16px;
+}
+
+.weakness-heading p {
+    color: #fca5a5;
+}
+
+.weakness-icon {
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+.candidate-weakness-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.candidate-weakness-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.candidate-weakness-list li > span {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    color: #ffffff;
+    background: #ef4444;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.candidate-weakness-list p {
+    margin: 0;
+    color: #dbeafe;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.6 HIRING RECOMMENDATION
+========================================== */
+
+.hiring-recommendation-panel {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 20px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left-width: 5px;
+    border-radius: 16px;
+}
+
+.hiring-recommendation-icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    place-items: center;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    font-size: 1.45rem;
+}
+
+.hiring-recommendation-content {
+    display: grid;
+    gap: 4px;
+}
+
+.hiring-recommendation-content > span {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.hiring-recommendation-content h4 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.hiring-recommendation-content p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.hiring-recommendation-panel.strong-match {
+    border-color: #22c55e;
+}
+
+.strong-match .hiring-recommendation-content h4 {
+    color: #4ade80;
+}
+
+.hiring-recommendation-panel.potential-match {
+    border-color: #38bdf8;
+}
+
+.potential-match .hiring-recommendation-content h4 {
+    color: #38bdf8;
+}
+
+.hiring-recommendation-panel.needs-review {
+    border-color: #f59e0b;
+}
+
+.needs-review .hiring-recommendation-content h4 {
+    color: #fbbf24;
+}
+
+.hiring-recommendation-panel.low-match {
+    border-color: #ef4444;
+}
+
+.low-match .hiring-recommendation-content h4 {
+    color: #f87171;
+}
+
+@media (max-width: 768px) {
+    .candidate-weakness-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .candidate-weaknesses-panel {
+        padding: 15px;
+    }
+
+    .candidate-weakness-list li {
+        padding: 11px;
+    }
+
+    .hiring-recommendation-panel {
+        align-items: flex-start;
+        padding: 15px;
+    }
+
+    .hiring-recommendation-icon {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+        font-size: 1.2rem;
+    }
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.7 RECRUITER PDF REPORT
+========================================== */
+
+.multiple-report-download-form {
+    display: flex;
+    justify-content: flex-end;
+    margin: -14px 0 30px;
+}
+
+.multiple-report-download-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 12px 20px;
+    color: #ffffff;
+    background: linear-gradient(
+        135deg,
+        #0284c7,
+        #2563eb
+    );
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 800;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.multiple-report-download-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.3);
+}
+
+.multiple-report-download-button:focus-visible {
+    outline: 3px solid rgba(56, 189, 248, 0.45);
+    outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+    .multiple-report-download-form {
+        margin-top: -8px;
+    }
+
+    .multiple-report-download-button {
+        width: 100%;
+    }
+}
+
+/* ==========================================
+   DAY 12 - STEP 22.8 IMPROVED HISTORY
+========================================== */
+
+.history-score-preview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.history-score-preview > div {
+    display: grid;
+    gap: 5px;
+    padding: 13px;
+    text-align: center;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.history-score-preview span {
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
+
+.history-score-preview strong {
+    color: #38bdf8;
+    font-size: 1.05rem;
+}
+
+.history-hiring-result {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 13px 15px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left-width: 4px;
+    border-radius: 12px;
+}
+
+.history-hiring-result > span {
+    font-size: 1.25rem;
+}
+
+.history-hiring-result div {
+    display: grid;
+    gap: 3px;
+}
+
+.history-hiring-result small {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.history-hiring-result.strong-match {
+    border-color: #22c55e;
+}
+
+.history-hiring-result.strong-match strong {
+    color: #4ade80;
+}
+
+.history-hiring-result.potential-match {
+    border-color: #38bdf8;
+}
+
+.history-hiring-result.potential-match strong {
+    color: #38bdf8;
+}
+
+.history-hiring-result.needs-review {
+    border-color: #f59e0b;
+}
+
+.history-hiring-result.needs-review strong {
+    color: #fbbf24;
+}
+
+.history-hiring-result.low-match {
+    border-color: #ef4444;
+}
+
+.history-hiring-result.low-match strong {
+    color: #f87171;
+}
+
+@media (max-width: 768px) {
+    .history-score-preview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .history-score-preview {
+        grid-template-columns: 1fr;
+    }
+}
