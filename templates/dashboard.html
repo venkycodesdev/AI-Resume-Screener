@@ -302,19 +302,11 @@
                     </a>
 
 
-                    <!-- =================================
-                         SAVED REPORTS
-                         STILL COMING SOON
-                    ================================== -->
-
-                    <div
-                        class="dashboard-action-card
-                               dashboard-action-disabled"
+                    <!-- Version 2: Saved reports -->
+                    <a
+                        href="{{ url_for('v2.reports') }}"
+                        class="dashboard-action-card"
                     >
-
-                        <span class="dashboard-coming-soon">
-                            Coming Soon
-                        </span>
 
 
                         <div class="dashboard-action-icon">
@@ -329,13 +321,20 @@
                             </h3>
 
                             <p>
-                                Access previously generated PDF analysis
-                                reports in a future update.
+                                Search, filter, download and manage your
+                                saved analysis reports.
                             </p>
 
                         </div>
 
-                    </div>
+                        <span class="dashboard-action-arrow">→</span>
+                    </a>
+
+                    <a href="{{ url_for('v2.scoring_weights') }}" class="dashboard-action-card">
+                        <div class="dashboard-action-icon">⚖️</div>
+                        <div class="dashboard-action-content"><h3>Scoring Weights</h3><p>Control how skills, experience, projects and education affect candidate rankings.</p></div>
+                        <span class="dashboard-action-arrow">→</span>
+                    </a>
 
 
                 </div>

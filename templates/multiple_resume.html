@@ -299,7 +299,18 @@
     </form>
 
 
-    <div class="candidate-ranking-list">
+    <div class="v2-card v2-candidate-tools">
+        <p class="section-tag">RECRUITER SEARCH & FILTERS</p>
+        <div class="v2-filter">
+            <label>Candidate<input id="candidateSearch" placeholder="Search filename"></label>
+            <label>Minimum score<input id="candidateMinimum" type="number" min="0" max="100" value="0"></label>
+            <label>Recommendation<select id="candidateRecommendation"><option value="all">All</option><option value="strong">Strong (75+)</option><option value="potential">Potential (50–74)</option><option value="low">Low (&lt;50)</option></select></label>
+            <label>Sort<select id="candidateSort"><option value="rank">Original rank</option><option value="score">Highest overall</option><option value="skills">Highest skills</option><option value="experience">Highest experience</option><option value="projects">Highest projects</option><option value="education">Highest education</option></select></label>
+        </div>
+        <p>Current weights: Skills {{ scoring_weights.skills }}% · Experience {{ scoring_weights.experience }}% · Projects {{ scoring_weights.projects }}% · Education {{ scoring_weights.education }}% · <a href="{{ url_for('v2.scoring_weights') }}">Change weights</a></p>
+    </div>
+
+    <div class="candidate-ranking-list" id="candidateRankingList">
 
         {% for candidate in candidates %}
 
@@ -312,6 +323,13 @@
             {% elif candidate.rank == 3 %}
                 rank-third
             {% endif %}"
+            data-name="{{ candidate.filename|lower }}"
+            data-rank="{{ candidate.rank }}"
+            data-score="{{ candidate.match_score }}"
+            data-skills="{{ candidate.score_breakdown.skills }}"
+            data-experience="{{ candidate.score_breakdown.experience }}"
+            data-projects="{{ candidate.score_breakdown.projects }}"
+            data-education="{{ candidate.score_breakdown.education }}"
         >
 
             <div class="candidate-rank-badge">
@@ -415,6 +433,10 @@
                     </div>
 
                 </div>
+
+                {% if candidate.analysis_id %}
+                <div class="v2-actions"><a class="v2-button secondary" href="{{ url_for('analysis_details', analysis_id=candidate.analysis_id) }}">Explain Scores</a><a class="v2-button" href="{{ url_for('v2.rewrite_resume', analysis_id=candidate.analysis_id) }}">Improve Resume</a></div>
+                {% endif %}
 
 <!-- Four-category score breakdown -->
 
@@ -715,6 +737,15 @@
         {% endfor %}
 
     </div>
+
+    <script>
+    (() => {
+        const list=document.getElementById('candidateRankingList'); if(!list)return;
+        const cards=[...list.querySelectorAll('.candidate-ranking-card')], search=document.getElementById('candidateSearch'), minimum=document.getElementById('candidateMinimum'), rec=document.getElementById('candidateRecommendation'), sort=document.getElementById('candidateSort');
+        const refresh=()=>{const q=search.value.trim().toLowerCase(),min=Number(minimum.value)||0;cards.forEach(c=>{const s=Number(c.dataset.score),group=s>=75?'strong':s>=50?'potential':'low';c.hidden=!c.dataset.name.includes(q)||s<min||(rec.value!=='all'&&rec.value!==group)});const key=sort.value;[...cards].sort((a,b)=>key==='rank'?Number(a.dataset.rank)-Number(b.dataset.rank):Number(b.dataset[key])-Number(a.dataset[key])).forEach(c=>list.appendChild(c));};
+        [search,minimum,rec,sort].forEach(el=>el.addEventListener('input',refresh));
+    })();
+    </script>
 
 </section>
 
