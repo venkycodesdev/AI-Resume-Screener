@@ -46,6 +46,8 @@ from werkzeug.security import (
 )
 from werkzeug.utils import secure_filename
 
+from v2_features import register_v2_features
+
 
 app = Flask(__name__)
 
@@ -205,7 +207,7 @@ class Analysis(db.Model):
         nullable=False,
         default="{}",
     )
-    
+
     score_breakdown = db.Column(
         db.Text,
         nullable=False,
@@ -1305,7 +1307,7 @@ def calculate_intelligent_skills_score(
         0,
         min(100, final_score),
     )
-    
+
 
 def extract_experience_section(resume_text):
     """
@@ -1623,8 +1625,8 @@ def calculate_experience_relevance_score(
         0,
         min(95, round(experience_score)),
     )
-    
-    
+
+
 def extract_education_section(resume_text):
     """
     Extract only the Education section from the resume.
@@ -2036,7 +2038,7 @@ def calculate_score_breakdown(
     }
 
 
-def calculate_weighted_overall_score(score_breakdown):
+def calculate_weighted_overall_score(score_breakdown, category_weights=None):
     """
     Calculate the final resume score using the four improved
     category scores.
@@ -2048,11 +2050,17 @@ def calculate_weighted_overall_score(score_breakdown):
     Education: 10%
     """
 
-    category_weights = {
-        "skills": 0.40,
-        "experience": 0.30,
-        "projects": 0.20,
-        "education": 0.10,
+    category_weights = category_weights or {
+        "skills": 40,
+        "experience": 30,
+        "projects": 20,
+        "education": 10,
+    }
+
+    # Accept either percentage values (40) or decimal values (0.40).
+    normalized_weights = {
+        category: (weight / 100 if weight > 1 else weight)
+        for category, weight in category_weights.items()
     }
 
     weighted_score = sum(
@@ -2063,7 +2071,7 @@ def calculate_weighted_overall_score(score_breakdown):
                 score_breakdown.get(category, 0),
             ),
         ) * weight
-        for category, weight in category_weights.items()
+        for category, weight in normalized_weights.items()
     )
 
     final_score = round(weighted_score)
@@ -3443,7 +3451,7 @@ def build_analysis_pdf(report_data):
     )
 
     story.append(score_table)
-    
+
     story.append(
         Paragraph(
             "Detailed Resume Performance",
@@ -3672,7 +3680,7 @@ def build_analysis_pdf(report_data):
             section_style,
         )
     )
-    
+
     story.append(
         Paragraph(
             f"<b>{escape(report_data['final_title'])}</b>",
@@ -4432,7 +4440,7 @@ def analysis_details(analysis_id):
         )
     except (json.JSONDecodeError, TypeError):
         detected_skills = []
-        
+
     try:
         interview_questions = json.loads(
             analysis.interview_questions or "{}"
@@ -4467,6 +4475,22 @@ def analysis_details(analysis_id):
             score_breakdown,
         )
 
+    context_model = V2.models["AnalysisContext"]
+    saved_context = context_model.query.filter_by(
+        analysis_id=analysis.id,
+        user_id=current_user.id,
+    ).first()
+    explanations = {}
+    scoring_weights = V2.get_user_weights(current_user.id)
+    if saved_context:
+        try:
+            explanations = json.loads(saved_context.explanations or "{}")
+            scoring_weights = (
+                json.loads(saved_context.weights or "{}") or scoring_weights
+            )
+        except (json.JSONDecodeError, TypeError):
+            explanations = {}
+
     return render_template(
         "analysis_details.html",
         analysis=analysis,
@@ -4478,6 +4502,11 @@ def analysis_details(analysis_id):
         candidate_strengths=candidate_strengths,
         candidate_weaknesses=candidate_weaknesses,
         hiring_recommendation=hiring_recommendation,
+        explanations=explanations,
+        scoring_weights=scoring_weights,
+        rewrite_available=bool(
+            saved_context and saved_context.resume_text.strip()
+        ),
     )
 
 
@@ -4710,6 +4739,7 @@ def analyze_multiple_resumes():
         )
 
     candidates = []
+    scoring_weights = V2.get_user_weights(current_user.id)
 
     # Extract and analyze every validated resume.
     for validated_file in validated_files:
@@ -4810,19 +4840,20 @@ def analyze_multiple_resumes():
         )
 
         match_score = calculate_weighted_overall_score(
-            score_breakdown
+            score_breakdown,
+            scoring_weights,
         )
 
         candidate_strengths = generate_candidate_strengths(
             score_breakdown,
             matching_skills,
         )
-        
+
         candidate_weaknesses = generate_candidate_weaknesses(
             score_breakdown,
             missing_skills,
         )
-        
+
         hiring_recommendation = generate_hiring_recommendation(
             match_score,
             score_breakdown,
@@ -4921,6 +4952,22 @@ def analyze_multiple_resumes():
             )
 
             db.session.add(analysis)
+            db.session.flush()
+            candidate["analysis_id"] = analysis.id
+
+            explanations = V2.build_explanations(
+                candidate["extracted_text"],
+                job_description,
+                candidate["score_breakdown"],
+                candidate["matching_skills"],
+                candidate["missing_skills"],
+            )
+            V2.save_analysis_context(
+                analysis,
+                candidate["extracted_text"],
+                explanations,
+                scoring_weights,
+            )
 
         db.session.commit()
 
@@ -4950,6 +4997,7 @@ def analyze_multiple_resumes():
         upload_success=True,
         job_description=job_description,
         job_skills=job_skills,
+        scoring_weights=scoring_weights,
     )
 
 
@@ -5121,8 +5169,10 @@ def upload_resume():
         job_skills,
     )
 
+    scoring_weights = V2.get_user_weights(current_user.id)
     resume_score = calculate_weighted_overall_score(
-        score_breakdown
+        score_breakdown,
+        scoring_weights,
     )
 
     suggestions = generate_suggestions(
@@ -5161,7 +5211,7 @@ def upload_resume():
     )
 
     try:
-        db.session.add(Analysis(
+        analysis = Analysis(
             user_id=current_user.id,
             resume_filename=filename,
             analysis_type="single",
@@ -5174,7 +5224,23 @@ def upload_resume():
 
             interview_questions=json.dumps(interview_questions),
             score_breakdown=json.dumps(score_breakdown),
-        ))
+        )
+        db.session.add(analysis)
+        db.session.flush()
+
+        explanations = V2.build_explanations(
+            text,
+            job_description,
+            score_breakdown,
+            matching_skills,
+            missing_skills,
+        )
+        V2.save_analysis_context(
+            analysis,
+            text,
+            explanations,
+            scoring_weights,
+        )
         db.session.commit()
     except Exception as error:
         db.session.rollback()
@@ -5213,6 +5279,11 @@ def upload_resume():
         final_recommendation=final_recommendation,
         interview_questions=interview_questions,
         resume_info=resume_info,
+        analysis_id=analysis.id if "analysis" in locals() else None,
+        explanations=(
+            explanations if "explanations" in locals() else {}
+        ),
+        scoring_weights=scoring_weights,
     )
 
 
@@ -5342,6 +5413,28 @@ def download_multiple_report():
         as_attachment=True,
         download_name="multiple_resume_recruiter_report.pdf",
     )
+
+
+V2 = register_v2_features(
+    app,
+    db,
+    User,
+    Analysis,
+    {
+        "extract_skills": extract_skills,
+        "extract_experience_section": extract_experience_section,
+        "extract_projects_section": extract_projects_section,
+        "extract_education_section": extract_education_section,
+        "calculate_score_breakdown": calculate_score_breakdown,
+        "generate_interview_questions": generate_interview_questions,
+        "generate_final_recommendation": generate_final_recommendation,
+        "generate_candidate_strengths": generate_candidate_strengths,
+        "generate_candidate_weaknesses": generate_candidate_weaknesses,
+        "generate_targeted_recommendations": generate_targeted_recommendations,
+        "calculate_ats_rating": calculate_ats_rating,
+        "build_analysis_pdf": build_analysis_pdf,
+    },
+)
 
 
 with app.app_context():

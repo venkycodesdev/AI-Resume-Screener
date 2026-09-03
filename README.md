@@ -1,371 +1,166 @@
-AI Resume Screener
-
-An intelligent, recruiter-focused web application that compares PDF and DOCX resumes with a job description, produces evidence-based scores, ranks multiple candidates, and generates personalized recommendations and interview questions.
-
-Live Demo and Source Code
-
-Live Demo: https://ai-resume-screener-0nwr.onrender.com
-
-GitHub Repository: https://github.com/venkycodesdev/AI-Resume-Screener
-
-Overview
-
-AI Resume Screener helps candidates evaluate their resumes and helps recruiters compare multiple applicants consistently. The application extracts resume content, detects relevant skills and evidence, evaluates four scoring categories, and calculates a weighted overall match score.
-
-The project includes secure user authentication, saved analysis history, downloadable PDF reports, responsive interfaces, file validation, and a PostgreSQL production database.
-
-Features
-
-PDF and DOCX resume uploads
-
-Pasted or uploaded job descriptions
-
-File-type, file-size, empty-content, and corrupted-file validation
-
-Single-resume analysis
-
-Multiple-resume analysis and weighted candidate ranking
-
-Candidate comparison table
-
-Best-candidate highlighting
-
-Candidate strengths and weaknesses
-
-Hiring recommendations
-
-Matching and missing skill detection
-
-Four-category score breakdown
-
-Weighted overall resume score
-
-Targeted resume-improvement recommendations
-
-Technical, resume-based, skill-gap, project, and role-based interview questions
-
-Downloadable PDF analysis reports
-
-Registration, login, logout, and user-data isolation
-
-Saved analysis and resume history
-
-Responsive desktop, tablet, and mobile design
-
-PostgreSQL production storage with SQLite fallback for local development
-
-Scoring System
-
-The overall score uses four evidence-based categories:
-
-Category
-
-Weight
-
-Skills Match
-
-40%
-
-Experience Relevance
-
-30%
-
-Projects Relevance
-
-20%
-
-Education Match
-
-10%
-
-Overall Score =
-    (Skills x 0.40) +
-    (Experience x 0.30) +
-    (Projects x 0.20) +
-    (Education x 0.10)
-
-The category calculations use detected resume evidence and job-description relevance. The scoring logic is designed to avoid giving an easy or unsupported 100% score.
-
-Recruiter Recommendations
-
-Candidates are assigned a recommendation based on their weighted score and supporting evidence:
-
-Strong Match
-
-Potential Match
-
-Needs Review
-
-Low Match
-
-The multiple-resume workflow ranks candidates using the weighted overall score instead of basic skill matching alone.
-
-Technology Stack
-
-Backend
-
-Python
-
-Flask
-
-Flask-Login
-
-Flask-SQLAlchemy
-
-Gunicorn
-
-PostgreSQL in production
-
-SQLite for local fallback
-
-Resume and Report Processing
-
-pdfplumber
-
-pdfminer.six
-
-python-docx
-
-ReportLab
-
-Pillow
-
-Frontend
-
-HTML5
-
-CSS3
-
-JavaScript
-
-Jinja2 templates
-
-Deployment
-
-Render Web Service
-
-Render PostgreSQL
-
-GitHub
-
-Architecture
-
-Browser
-   |
-   v
-Flask routes and authentication
-   |
-   +--> File validation and secure text extraction
-   |
-   +--> Resume/JD scoring engine
-   |       +--> Skills
-   |       +--> Experience
-   |       +--> Education
-   |       +--> Projects
-   |
-   +--> Recommendations and interview questions
-   |
-   +--> PDF report generation
-   |
-   v
-SQLAlchemy
-   +--> PostgreSQL (production)
-   +--> SQLite (local fallback)
-
-Project Structure
-
+# AI Resume Screener V2
+
+An intelligent Flask application for evidence-based resume analysis, candidate ranking, explainable scoring and truthful resume rewriting.
+
+## Live Demo and Source Code
+
+- **Live Demo:** [https://ai-resume-screener-0nwr.onrender.com](https://ai-resume-screener-0nwr.onrender.com)
+- **GitHub Repository:** [https://github.com/venkycodesdev/AI-Resume-Screener](https://github.com/venkycodesdev/AI-Resume-Screener)
+
+> The live URL will show V2 after the updated code is pushed and Render completes deployment.
+
+## Version 2 Features
+
+- Saved Reports page with filename search, analysis-type filtering, minimum-score filtering and sorting
+- Secure report download, deletion and user-data isolation
+- Explainable scores with detected evidence and improvement areas
+- Truthful Resume Rewriter with professional, concise, technical and fresher-friendly tones
+- Side-by-side original and improved resume editor
+- Improved-resume downloads in DOCX and PDF formats
+- Re-analysis of the improved resume
+- Recruiter-controlled scoring weights with strict 100% validation
+- Candidate search, score/recommendation filters and category sorting
+- Automated pytest coverage and GitHub Actions on every push
+
+The rewriter improves wording but does not invent skills, employers, qualifications, achievements or measurements. Every rewritten statement must be reviewed by the user.
+
+## Existing Features
+
+- PDF and DOCX resume upload and secure file validation
+- Pasted or uploaded job descriptions
+- Single-resume analysis
+- Multiple-resume comparison and candidate ranking
+- Skills, experience, projects and education scores
+- Matching and missing skill detection
+- Candidate strengths, weaknesses and hiring recommendations
+- Personalized interview-question generation
+- Saved analysis history
+- Downloadable analysis and recruiter PDF reports
+- Registration, login, logout and per-user data isolation
+- PostgreSQL production database with SQLite local fallback
+- Responsive desktop, tablet and mobile interface
+
+## Default Scoring
+
+| Category | Default weight |
+| --- | ---: |
+| Skills match | 40% |
+| Experience relevance | 30% |
+| Projects relevance | 20% |
+| Education match | 10% |
+
+Recruiters can change these values from **Dashboard → Scoring Weights**. The total must equal exactly 100% and the saved weights apply to both single and multiple-resume analysis.
+
+## Technology Stack
+
+- Python and Flask
+- Flask-Login and Flask-SQLAlchemy
+- PostgreSQL in production; SQLite locally
+- pdfplumber and python-docx for resume extraction
+- ReportLab and python-docx for PDF/DOCX exports
+- HTML, CSS, JavaScript and Jinja templates
+- pytest and GitHub Actions
+- Gunicorn and Render
+
+## Project Structure
+
+```text
 AI-Resume-Screener/
-|-- app.py
-|-- requirements.txt
-|-- README.md
-|-- .gitignore
-|-- static/
-|   |-- css/
-|   |   `-- style.css
-|   `-- js/
-|       `-- script.js
-|-- templates/
-|   |-- index.html
-|   |-- multiple_resume.html
-|   |-- history.html
-|   |-- analysis_details.html
-|   `-- other application templates
-`-- uploads/
-    `-- .gitkeep
+├── app.py
+├── v2_features.py
+├── requirements.txt
+├── README.md
+├── .github/workflows/tests.yml
+├── static/
+│   ├── css/style.css
+│   └── js/script.js
+├── templates/
+│   ├── index.html
+│   ├── dashboard.html
+│   ├── reports.html
+│   ├── scoring_weights.html
+│   ├── rewrite.html
+│   ├── reanalyze_result.html
+│   ├── multiple_resume.html
+│   ├── history.html
+│   └── analysis_details.html
+├── tests/test_v2.py
+└── uploads/.gitkeep
+```
 
-Local Installation
+## Local Installation
 
-1. Clone the repository
-
+```powershell
 git clone https://github.com/venkycodesdev/AI-Resume-Screener.git
 cd AI-Resume-Screener
-
-2. Create a virtual environment
-
 python -m venv venv
-
-Windows PowerShell:
-
 .\venv\Scripts\Activate.ps1
-
-macOS/Linux:
-
-source venv/bin/activate
-
-3. Install dependencies
-
 pip install -r requirements.txt
-
-4. Configure environment variables
-
-Create a local .env file or define these variables in your shell:
-
-SECRET_KEY=replace-with-a-long-random-secret
-FLASK_DEBUG=0
-
-DATABASE_URL is optional for local development. Without it, the application uses its local SQLite fallback.
-
-Never commit .env, credentials, database files, or uploaded resumes.
-
-5. Run the application
-
 python app.py
+```
 
-Open:
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-http://127.0.0.1:5000
+### Environment variables
 
-Usage
+```text
+SECRET_KEY=replace-with-a-long-random-secret
+DATABASE_URL=postgresql://...
+FLASK_DEBUG=0
+```
 
-Single-resume workflow
+`DATABASE_URL` is optional locally. Never commit `.env`, database files, credentials or uploaded private resumes.
 
-Register and log in.
+## Database Upgrade
 
-Open the Single Resume page.
+V2 keeps the existing `user` and `analysis` tables unchanged. On first startup, `db.create_all()` safely creates:
 
-Upload a valid PDF or DOCX resume.
+- `scoring_preference`
+- `analysis_context`
+- `resume_rewrite`
 
-Paste or upload a job description.
+Existing history remains available. Resume rewriting requires the original extracted text, so analyses created before V2 must be analyzed once again to enable rewriting.
 
-Run the analysis.
+## Testing
 
-Review the overall score, category scores, skills, recommendations, and interview questions.
+```powershell
+python -m py_compile app.py v2_features.py
+python -m pytest -q
+```
 
-Download the PDF report or open the saved analysis later from History.
+GitHub Actions runs the same compilation and test checks automatically.
 
-Multiple-resume workflow
+## Screenshots
 
-Open the Multiple Resume page.
+### Home Page
 
-Upload multiple PDF or DOCX resumes.
+![AI Resume Screener Home Page](docs/screenshots/home-page.png)
 
-provide the job description.
+### Single Resume Analysis
 
-Run the analysis.
+![Single Resume Analysis Results](docs/screenshots/single-resume-results.png)
 
-Review the comparison table, candidate ranking, strengths, weaknesses, and hiring recommendation.
+### Candidate Comparison and Ranking
 
-Security and Reliability
+![Candidate Ranking](docs/screenshots/candidate-ranking.png)
 
-Environment-based production secrets
+### Resume History
 
-Production debug mode disabled
+![Resume History](docs/screenshots/resume-history.png)
 
-Password hashing and authenticated routes
+### Mobile Responsive Design
 
-User-owned history and analysis isolation
+![Mobile Responsive View](docs/screenshots/mobile-responsive.png)
 
-Safe filename handling
+## Deployment
 
-PDF/DOCX format validation
+1. Push the V2 files to the GitHub `version-2` branch.
+2. Confirm the **Automated Tests** workflow passes.
+3. Merge `version-2` into `main`.
+4. Render deploys `main` automatically.
+5. Open the live site and test register/login, analysis, reports, rewriting, downloads, custom weights and multiple-candidate filters.
 
-File-size limits
+## Author
 
-Empty and corrupted document handling
-
-Friendly validation and server-error messages
-
-Duplicate-submission prevention
-
-PostgreSQL production persistence
-
-Screenshots
-
-Home Page
-
-
-
-Single Resume Analysis
-
-
-
-Candidate Comparison and Ranking
-
-
-
-Resume History
-
-
-
-Mobile Responsive Design
-
-
-
-Testing
-
-The final release was tested for:
-
-Registration and login/logout
-
-User-data isolation
-
-Single- and multiple-resume workflows
-
-Weighted scoring and candidate ranking
-
-PDF report generation
-
-Saved analysis history
-
-Empty and very short resumes
-
-Resumes with no detected skills
-
-Job descriptions with few or no recognized skills
-
-Duplicate, invalid, unsupported, oversized, and corrupted files
-
-Desktop, tablet, and mobile responsiveness
-
-Render deployment and PostgreSQL persistence
-
-Future Improvements
-
-Semantic matching with transformer embeddings
-
-OCR support for scanned resumes
-
-Configurable scoring weights for recruiters
-
-Recruiter team workspaces and collaboration
-
-Job and candidate search filters
-
-Email notifications and interview scheduling
-
-Multilingual resume analysis
-
-Automated test suite and continuous integration
-
-Author
-
-Venkatesh
-B.Tech - Artificial Intelligence and Machine Learning
-
-GitHub: venkycodesdev
-
-Live project: AI Resume Screener
-
-Project Status
-
-Final release preparation in progress. Built for educational, portfolio, and demonstration purposes.
+- GitHub: [venkycodesdev](https://github.com/venkycodesdev)
+- Live Project: [AI Resume Screener](https://ai-resume-screener-0nwr.onrender.com)

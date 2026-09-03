@@ -2005,6 +2005,29 @@
 {% endif %}
 
 
+{% if analysis_id %}
+<section class="v2-card v2-result-feature">
+    <p class="section-tag">VERSION 2</p>
+    <h2>Understand and Improve This Resume</h2>
+    <p>Review evidence behind every score, rewrite the resume truthfully, edit the result and export it as DOCX or PDF.</p>
+    <div class="v2-actions">
+        <a class="v2-button" href="{{ url_for('v2.rewrite_resume', analysis_id=analysis_id) }}">Improve My Resume</a>
+        <a class="v2-button secondary" href="{{ url_for('v2.reports') }}">Open Saved Reports</a>
+    </div>
+</section>
+
+{% if explanations %}
+<section class="v2-explanations">
+    <p class="section-tag">EXPLAINABLE SCORING</p><h2>Why You Received These Scores</h2>
+    <div class="v2-grid">
+    {% for key, item in explanations.items() %}
+        <article class="v2-card"><div class="v2-card-top"><h3>{{ item.label }}</h3><strong class="v2-score">{{ item.score }}%</strong></div><h4>Evidence found</h4><ul>{% for line in item.evidence %}<li>{{ line }}</li>{% endfor %}</ul><h4>Missing or improvable</h4><ul>{% for line in item.missing %}<li>{{ line }}</li>{% endfor %}</ul><p class="v2-weight-note">Applied weight: {{ scoring_weights.get(key, 0) }}%</p></article>
+    {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endif %}
+
 <!-- Download Analysis Report -->
 <div class="download-report-section">
 

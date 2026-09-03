@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Scoring Weights | AI Resume Screener</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+<body class="v2-page"><nav class="v2-nav"><a href="{{ url_for('dashboard') }}" class="v2-brand">AI Resume Screener</a><div><a href="{{ url_for('v2.reports') }}">Saved Reports</a><a href="{{ url_for('home') }}">Analyze</a></div></nav>
+<main class="v2-shell narrow">
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="v2-alert {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
+<header class="v2-hero"><p class="section-tag">RECRUITER CONTROLS</p><h1>Custom Scoring Weights</h1><p>Choose how much each category contributes. The total must equal exactly 100%.</p></header>
+<form class="v2-card v2-weight-form" method="POST" id="weightForm">
+{% for key, label in [('skills','Skills'),('experience','Experience'),('projects','Projects'),('education','Education')] %}
+<label><span>{{ label }}</span><span><input class="weight-input" type="number" name="{{ key }}" min="0" max="100" value="{{ weights.get(key, 0) }}" required> %</span></label>
+{% endfor %}
+<div class="v2-total">Total: <strong id="weightTotal">100</strong>%</div><p id="weightError" class="v2-error" hidden>The total must equal 100%.</p>
+<button class="v2-button" type="submit">Save Weights</button><button class="v2-button secondary" type="button" id="resetWeights">Use Recommended 40/30/20/10</button>
+</form></main>
+<script>const inputs=[...document.querySelectorAll('.weight-input')],total=document.getElementById('weightTotal'),error=document.getElementById('weightError'),form=document.getElementById('weightForm');function update(){const n=inputs.reduce((s,i)=>s+(Number(i.value)||0),0);total.textContent=n;error.hidden=n===100;total.style.color=n===100?'#16a34a':'#dc2626'}inputs.forEach(i=>i.addEventListener('input',update));form.addEventListener('submit',e=>{update();if(Number(total.textContent)!==100)e.preventDefault()});document.getElementById('resetWeights').onclick=()=>{[40,30,20,10].forEach((v,i)=>inputs[i].value=v);update()};update();</script>
+</body></html>

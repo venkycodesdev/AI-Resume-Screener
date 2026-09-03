@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved Reports | AI Resume Screener</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="v2-page">
+<nav class="v2-nav">
+    <a href="{{ url_for('dashboard') }}" class="v2-brand">AI Resume Screener</a>
+    <div><a href="{{ url_for('home') }}">Analyze</a><a href="{{ url_for('history') }}">History</a><a href="{{ url_for('v2.scoring_weights') }}">Scoring Weights</a></div>
+</nav>
+<main class="v2-shell">
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="v2-alert {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}
+    <header class="v2-hero"><p class="section-tag">VERSION 2</p><h1>Saved Reports</h1><p>Search, filter, download or remove your own saved analyses.</p></header>
+    <form class="v2-filter" method="GET">
+        <label>Resume name<input name="q" value="{{ search }}" placeholder="Search candidate or filename"></label>
+        <label>Analysis type<select name="type"><option value="all">All</option><option value="single" {% if analysis_type == 'single' %}selected{% endif %}>Single</option><option value="multiple" {% if analysis_type == 'multiple' %}selected{% endif %}>Multiple</option></select></label>
+        <label>Minimum score<input type="number" name="min_score" min="0" max="100" value="{{ minimum_score }}"></label>
+        <label>Recommendation<select name="recommendation"><option value="all">All</option><option value="strong" {% if recommendation == 'strong' %}selected{% endif %}>Strong (75+)</option><option value="potential" {% if recommendation == 'potential' %}selected{% endif %}>Potential (50–74)</option><option value="low" {% if recommendation == 'low' %}selected{% endif %}>Low (&lt;50)</option></select></label>
+        <label>Sort<select name="sort"><option value="newest">Newest</option><option value="score" {% if sort == 'score' %}selected{% endif %}>Highest score</option></select></label>
+        <button class="v2-button" type="submit">Apply Filters</button>
+    </form>
+    <section class="v2-grid">
+        {% for analysis in analyses %}
+        <article class="v2-card">
+            <div class="v2-card-top"><span class="v2-pill">{{ analysis.analysis_type|title }}</span><strong class="v2-score">{{ analysis.match_score }}%</strong></div>
+            <h2>{{ analysis.resume_filename }}</h2>
+            <p>Analyzed {{ analysis.created_at.strftime('%d %b %Y, %I:%M %p') if analysis.created_at else 'recently' }}</p>
+            <div class="v2-actions">
+                <a class="v2-button secondary" href="{{ url_for('analysis_details', analysis_id=analysis.id) }}">View</a>
+                <a class="v2-button" href="{{ url_for('v2.download_saved_report', analysis_id=analysis.id) }}">Download PDF</a>
+                <form method="POST" action="{{ url_for('v2.delete_saved_report', analysis_id=analysis.id) }}" onsubmit="return confirm('Delete this saved report?');"><button class="v2-button danger" type="submit">Delete</button></form>
+            </div>
+        </article>
+        {% else %}<div class="v2-empty"><h2>No reports found</h2><p>Change the filters or analyze a resume to create your first saved report.</p><a class="v2-button" href="{{ url_for('home') }}#upload">Analyze Resume</a></div>{% endfor %}
+    </section>
+</main>
+</body>
+</html>
