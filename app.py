@@ -125,6 +125,20 @@ class User(UserMixin, db.Model):
         db.String(255),
         nullable=False,
     )
+    
+    role = db.Column(
+        db.String(20),
+        nullable=False,
+        default="candidate",
+        server_default="candidate",
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "role IN ('candidate', 'recruiter', 'admin')",
+            name="ck_user_role_allowed",
+        ),
+    )
 
     created_at = db.Column(
         db.DateTime,
@@ -4321,7 +4335,11 @@ def register():
             flash("An account with this email already exists.", "warning")
             return redirect(url_for("register"))
 
-        new_user = User(name=name, email=email)
+        new_user = User(
+            name=name,
+            email=email,
+            role="candidate",
+        )
         new_user.set_password(password)
         try:
             db.session.add(new_user)
