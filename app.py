@@ -7,8 +7,8 @@ from io import BytesIO
 from uuid import uuid4
 from xml.sax.saxutils import escape
 
-import pdfplumber
 from docx import Document
+import pdfplumber
 from flask import (
     Flask,
     flash,
@@ -27,6 +27,7 @@ from flask_login import (
     logout_user,
 )
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -69,6 +70,13 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+
+migrate = Migrate(
+    app,
+    db,
+    compare_type=True,
+    render_as_batch=True,
+)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -5435,10 +5443,6 @@ V2 = register_v2_features(
         "build_analysis_pdf": build_analysis_pdf,
     },
 )
-
-
-with app.app_context():
-    db.create_all()
 
 
 if __name__ == "__main__":
