@@ -1,6 +1,7 @@
-from tests.test_v2 import application, clean_database, client
-from sqlalchemy.exc import IntegrityError
 import pytest
+from sqlalchemy.exc import IntegrityError
+
+from test_v2 import application
 
 
 def test_registration_always_creates_candidate(client):
@@ -22,6 +23,7 @@ def test_registration_always_creates_candidate(client):
         user = application.User.query.filter_by(
             email="role-test@example.com"
         ).one()
+
         assert user.role == "candidate"
 
 

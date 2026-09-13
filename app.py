@@ -2,6 +2,8 @@ import json
 import os
 import re
 import zipfile
+from flask import abort
+from permissions import roles_required
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -4374,7 +4376,7 @@ def login():
             return redirect(url_for("login"))
         login_user(user, remember=remember)
         flash(f"Welcome back, {user.name}!", "success")
-        return redirect(url_for("home"))
+        return redirect(url_for("dashboard"))
     return render_template("login.html")
 
 
@@ -4395,7 +4397,73 @@ def home():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html", user=current_user)
+    destinations = {
+        "candidate": "candidate_dashboard",
+        "recruiter": "recruiter_dashboard",
+        "admin": "admin_dashboard",
+    }
+
+    endpoint = destinations.get(current_user.role)
+    if endpoint is None:
+        abort(403)
+
+    return redirect(url_for(endpoint))
+
+
+@app.route("/candidate/dashboard")
+@roles_required("candidate")
+def candidate_dashboard():
+    report_count = Analysis.query.filter_by(
+        user_id=current_user.id
+    ).count()
+
+    return render_template(
+        "role_dashboard.html",
+        dashboard_title="Candidate Dashboard",
+        description="Analyze your resume and review your progress.",
+        metrics=[("Your saved analyses", report_count)],
+        actions=[
+            ("Analyze my resume", "home"),
+            ("View my history", "history"),
+        ],
+    )
+
+
+@app.route("/recruiter/dashboard")
+@roles_required("recruiter")
+def recruiter_dashboard():
+    report_count = Analysis.query.filter_by(
+        user_id=current_user.id
+    ).count()
+
+    return render_template(
+        "role_dashboard.html",
+        dashboard_title="Recruiter Dashboard",
+        description="Screen resumes and review your saved results.",
+        metrics=[("Your saved analyses", report_count)],
+        actions=[
+            ("Screen multiple resumes", "multiple_resume"),
+            ("View my history", "history"),
+        ],
+    )
+
+
+@app.route("/admin/dashboard")
+@roles_required("admin")
+def admin_dashboard():
+    return render_template(
+        "role_dashboard.html",
+        dashboard_title="Admin Dashboard",
+        description="View account and analysis totals across the platform.",
+        metrics=[
+            ("Total users", User.query.count()),
+            ("Candidates", User.query.filter_by(role="candidate").count()),
+            ("Recruiters", User.query.filter_by(role="recruiter").count()),
+            ("Administrators", User.query.filter_by(role="admin").count()),
+            ("Total analyses", Analysis.query.count()),
+        ],
+        actions=[],
+    )
 
 
 @app.route("/history")
