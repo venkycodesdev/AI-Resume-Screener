@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Jobs | AI Resume Screener</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+    margin: 0;
+    background: #f4f6fb;
+    color: #182235;
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    }
+    header {
+    background: white;
+    border-bottom: 1px solid #dce2ec;
+    }
+    nav, main {
+    max-width: 1120px;
+    margin: auto;
+    padding: 24px;
+    }
+    nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    }
+    a { color: #5037d5; }
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 0; }
+    .muted { color: #526176; }
+    .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+    margin-top: 28px;
+    }
+    .panel, .job {
+    background: white;
+    border: 1px solid #dce2ec;
+    border-radius: 14px;
+    padding: 24px;
+    }
+    .job { margin-bottom: 16px; }
+    label {
+    display: block;
+    margin-top: 16px;
+    font-weight: bold;
+    }
+    input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 6px;
+    border: 1px solid #aab6c8;
+    border-radius: 8px;
+    font: inherit;
+    }
+    textarea { min-height: 180px; resize: vertical; }
+    button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: #583de0;
+    color: white;
+    font: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    }
+    button:hover { background: #4228b9; }
+    :focus-visible {
+    outline: 3px solid #087da3;
+    outline-offset: 3px;
+    }
+    .notice, .errors {
+    padding: 16px;
+    margin: 16px 0;
+    border-radius: 8px;
+    }
+    .notice { background: #dcfce7; color: #14532d; }
+    .errors { background: #fee2e2; color: #991b1b; }
+    .badge {
+    padding: 4px 10px;
+    background: #eee9ff;
+    color: #5037d5;
+    border-radius: 20px;
+    font-size: 14px;
+    }
+    .job h3 { overflow-wrap: anywhere; }
+    .description {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    }
+    @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+<header>
+    <nav aria-label="Main navigation">
+    <strong>AI Resume Screener</strong>
+    <a href="{{ url_for('recruiter_dashboard') }}">
+        Back to dashboard
+    </a>
+    </nav>
+</header>
+
+<main>
+    <h1>My Jobs</h1>
+    <p class="muted">Create job drafts and review your postings.</p>
+
+    {% for message in get_flashed_messages() %}
+    <div class="notice" role="status">{{ message }}</div>
+    {% endfor %}
+
+    {% if errors %}
+    <div class="errors" role="alert">
+        <strong>Please correct the following:</strong>
+        <ul>
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="layout">
+    <section class="panel">
+        <h2>{{ "Edit job" if editing_job else "Create a job draft" }}</h2>
+        <p class="muted">All fields are required.</p>
+
+        <form method="post"
+        action="{{ url_for('edit_recruiter_job', job_id=editing_job.id)
+                if editing_job else url_for('recruiter_jobs') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <label for="title">Job title</label>
+        <input id="title" name="title" maxlength="150"
+                value="{{ values.title }}" required>
+
+        <label for="company">Company</label>
+        <input id="company" name="company" maxlength="150"
+                value="{{ values.company }}" required>
+
+        <label for="location">Location</label>
+        <input id="location" name="location" maxlength="150"
+                value="{{ values.location }}"
+                placeholder="Hyderabad, Bengaluru or Remote" required>
+
+        <label for="employment_type">Employment type</label>
+        <select id="employment_type" name="employment_type" required>
+            {% for value, label in employment_types.items() %}
+            <option value="{{ value }}"
+                {% if values.employment_type == value %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="description">Job description</label>
+        <textarea id="description" name="description"
+                    maxlength="20000"
+                    required>{{ values.description }}</textarea>
+
+        <button type="submit">
+{{ "Save changes" if editing_job else "Save draft" }}
+</button>
+
+{% if editing_job %}
+<a href="{{ url_for('recruiter_jobs') }}">Cancel editing</a>
+{% endif %}
+        </form>
+    </section>
+
+    <section aria-labelledby="postings-heading">
+        <h2 id="postings-heading">Your postings ({{ jobs|length }})</h2>
+
+        {% for job in jobs %}
+        <article class="job">
+            <span class="badge">{{ job.status|capitalize }}</span>
+            <h3>{{ job.title }}</h3>
+            <p>{{ job.company }} · {{ job.location }}</p>
+            <p class="muted">
+            {{ employment_types.get(job.employment_type, job.employment_type) }}
+            </p>
+            <details>
+            <summary>View description</summary>
+            <p class="description">{{ job.description }}</p>
+            </details>
+            <p>
+<a href="{{ url_for('edit_recruiter_job', job_id=job.id) }}">
+    Edit job
+</a>
+</p>
+
+<form method="post"
+    action="{{ url_for('change_recruiter_job_status', job_id=job.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+{% if job.status != "open" %}
+    <button type="submit" name="status" value="open">
+    {{ "Reopen job" if job.status == "closed" else "Open job" }}
+    </button>
+{% endif %}
+
+{% if job.status != "closed" %}
+    <button type="submit" name="status" value="closed">
+    Close job
+    </button>
+{% endif %}
+</form>
+        </article>
+        {% else %}
+        <div class="panel">
+            <p>No job postings yet. Create your first draft using the form.</p>
+        </div>
+        {% endfor %}
+    </section>
+    </div>
+</main>
+</body>
+</html>

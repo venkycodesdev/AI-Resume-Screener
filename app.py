@@ -4,6 +4,7 @@ import re
 import zipfile
 from flask import abort
 from permissions import roles_required
+from job_routes import register_job_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -164,6 +165,63 @@ class User(UserMixin, db.Model):
             self.password_hash,
             password,
         )
+        
+        
+class JobPosting(db.Model):
+    __tablename__ = "job_posting"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    recruiter_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True,
+    )
+
+    title = db.Column(db.String(150), nullable=False)
+    company = db.Column(db.String(150), nullable=False)
+    location = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    employment_type = db.Column(
+        db.String(20),
+        nullable=False,
+        default="full_time",
+        server_default="full_time",
+    )
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="draft",
+        server_default="draft",
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "status IN ('draft', 'open', 'closed')",
+            name="ck_job_posting_status",
+        ),
+        db.CheckConstraint(
+            "employment_type IN "
+            "('full_time', 'part_time', 'internship', 'contract')",
+            name="ck_job_posting_employment_type",
+        ),
+    )
 
 
 class Analysis(db.Model):
@@ -4442,6 +4500,7 @@ def recruiter_dashboard():
         description="Screen resumes and review your saved results.",
         metrics=[("Your saved analyses", report_count)],
         actions=[
+            ("My Jobs", "recruiter_jobs"),
             ("Screen multiple resumes", "multiple_resume"),
             ("View my history", "history"),
         ],
@@ -5508,6 +5567,8 @@ def download_multiple_report():
         download_name="multiple_resume_recruiter_report.pdf",
     )
 
+
+register_job_routes(app, db, JobPosting)
 
 V2 = register_v2_features(
     app,
