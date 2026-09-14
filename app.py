@@ -2,21 +2,16 @@ import json
 import os
 import re
 import zipfile
-from application_routes import register_application_routes
-from application_history_routes import register_application_history_routes
-from flask import abort
-from permissions import roles_required
-from job_routes import register_job_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
 from xml.sax.saxutils import escape
-from candidate_job_routes import register_candidate_job_routes
 
-from docx import Document
 import pdfplumber
+from docx import Document
 from flask import (
     Flask,
+    abort,
     flash,
     redirect,
     render_template,
@@ -32,8 +27,8 @@ from flask_login import (
     login_user,
     logout_user,
 )
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -53,6 +48,12 @@ from werkzeug.security import (
 )
 from werkzeug.utils import secure_filename
 
+from application_history_routes import register_application_history_routes
+from application_routes import register_application_routes
+from candidate_job_routes import register_candidate_job_routes
+from job_routes import register_job_routes
+from permissions import roles_required
+from recruiter_application_routes import register_recruiter_application_routes
 from v2_features import register_v2_features
 
 
@@ -5655,6 +5656,13 @@ def download_multiple_report():
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
 register_application_history_routes(app, JobApplication)
+
+register_recruiter_application_routes(
+    app,
+    JobPosting,
+    JobApplication,
+    User,
+)
 
 register_application_routes(
     app,
