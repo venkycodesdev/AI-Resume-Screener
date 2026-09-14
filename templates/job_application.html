@@ -97,6 +97,11 @@
         <h1>Your application</h1>
         <h2>{{ application.job_title_snapshot }}</h2>
         <p>Your application is saved.</p>
+        <p>
+    <a href="{{ url_for('candidate_applications') }}">
+    View all my applications
+    </a>
+</p>
         <p>Reference: #{{ application.id }}</p>
         <p>Resume: {{ application.resume_filename }}</p>
         <p class="muted">

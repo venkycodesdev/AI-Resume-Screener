@@ -3,6 +3,7 @@ import os
 import re
 import zipfile
 from application_routes import register_application_routes
+from application_history_routes import register_application_history_routes
 from flask import abort
 from permissions import roles_required
 from job_routes import register_job_routes
@@ -4563,6 +4564,7 @@ def candidate_dashboard():
         metrics=[("Your saved analyses", report_count)],
         actions=[
             ("Browse Jobs", "candidate_jobs"),
+            ("My Applications", "candidate_applications"),
             ("Analyze my resume", "home"),
             ("View my history", "history"),
         ],
@@ -5652,6 +5654,7 @@ def download_multiple_report():
 
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
+register_application_history_routes(app, JobApplication)
 
 register_application_routes(
     app,
