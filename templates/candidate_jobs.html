@@ -123,15 +123,20 @@
         </p>
         <h2>Job description</h2>
         <div class="description">{{ job.description }}</div>
-      </article>
+        <p>
+    <a class="button" href="{{ url_for('apply_to_job', job_id=job.id) }}">
+    Apply for this job
+    </a>
+</p>
+    </article>
     {% else %}
-      <h1>Browse Jobs</h1>
-      <p class="muted">Explore open positions and internships.</p>
+    <h1>Browse Jobs</h1>
+    <p class="muted">Explore open positions and internships.</p>
 
-      <form class="panel filters" method="get"
+    <form class="panel filters" method="get"
             action="{{ url_for('candidate_jobs') }}">
         <div class="field">
-          <label for="q">Search jobs</label>
+        <label for="q">Search jobs</label>
           <input id="q" name="q" value="{{ search }}"
                  maxlength="150"
                  placeholder="Job title, company or location">

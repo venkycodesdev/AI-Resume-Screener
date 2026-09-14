@@ -2,6 +2,7 @@ import json
 import os
 import re
 import zipfile
+from application_routes import register_application_routes
 from flask import abort
 from permissions import roles_required
 from job_routes import register_job_routes
@@ -221,6 +222,85 @@ class JobPosting(db.Model):
             "employment_type IN "
             "('full_time', 'part_time', 'internship', 'contract')",
             name="ck_job_posting_employment_type",
+        ),
+    )
+    
+    
+class JobApplication(db.Model):
+    __tablename__ = "job_application"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    candidate_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True,
+    )
+
+    job_id = db.Column(
+        db.Integer,
+        db.ForeignKey("job_posting.id"),
+        nullable=False,
+        index=True,
+    )
+
+    resume_filename = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    resume_content = db.Column(
+        db.LargeBinary,
+        nullable=False,
+    )
+
+    resume_text = db.Column(
+        db.Text,
+        nullable=False,
+    )
+
+    job_title_snapshot = db.Column(
+        db.String(150),
+        nullable=False,
+    )
+
+    job_description_snapshot = db.Column(
+        db.Text,
+        nullable=False,
+    )
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="submitted",
+        server_default="submitted",
+    )
+
+    submitted_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "candidate_id",
+            "job_id",
+            name="uq_job_application_candidate_job",
+        ),
+        db.CheckConstraint(
+            "status IN "
+            "('submitted', 'under_review', 'shortlisted', "
+            "'rejected', 'hired', 'withdrawn')",
+            name="ck_job_application_status",
         ),
     )
 
@@ -5572,6 +5652,15 @@ def download_multiple_report():
 
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
+
+register_application_routes(
+    app,
+    db,
+    JobPosting,
+    JobApplication,
+    validate_uploaded_file,
+    extract_resume_text,
+)
 
 V2 = register_v2_features(
     app,

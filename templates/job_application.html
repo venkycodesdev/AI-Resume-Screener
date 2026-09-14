@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Application | AI Resume Screener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #182235;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: white;
+      border-bottom: 1px solid #dce2ec;
+    }
+    nav, main {
+      max-width: 900px;
+      margin: auto;
+      padding: 24px;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    a { color: #5037d5; }
+    .panel {
+      margin-top: 24px;
+      padding: 28px;
+      background: white;
+      border: 1px solid #dce2ec;
+      border-radius: 16px;
+    }
+    h1 { line-height: 1.2; overflow-wrap: anywhere; }
+    .muted { color: #526176; }
+    label { display: block; font-weight: bold; margin-top: 24px; }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      margin: 8px 0;
+      border: 1px solid #aab6c8;
+      border-radius: 8px;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 20px;
+      margin-top: 20px;
+      background: #583de0;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: bold;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .button:disabled { opacity: 0.6; cursor: wait; }
+    :focus-visible {
+      outline: 3px solid #087da3;
+      outline-offset: 3px;
+    }
+    .error {
+      padding: 16px;
+      background: #fee2e2;
+      color: #991b1b;
+      border-radius: 8px;
+    }
+    .status {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #dcfce7;
+      color: #14532d;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav aria-label="Main navigation">
+      <strong>AI Resume Screener</strong>
+      <a href="{{ url_for('candidate_dashboard') }}">My dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    {% if application %}
+      <section class="panel">
+        <span class="status">
+          {{ application.status|replace('_', ' ')|title }}
+        </span>
+        <h1>Your application</h1>
+        <h2>{{ application.job_title_snapshot }}</h2>
+        <p>Your application is saved.</p>
+        <p>Reference: #{{ application.id }}</p>
+        <p>Resume: {{ application.resume_filename }}</p>
+        <p class="muted">
+          Submitted:
+          {{ application.submitted_at.strftime('%d %b %Y, %H:%M') }} UTC
+        </p>
+        <a class="button" href="{{ url_for('candidate_jobs') }}">
+          Browse more jobs
+        </a>
+      </section>
+    {% else %}
+      <p>
+        <a href="{{ url_for('candidate_job_detail', job_id=job.id) }}">
+          Back to job
+        </a>
+      </p>
+
+      <section class="panel">
+        <h1>Apply for {{ job.title }}</h1>
+        <p>{{ job.company }} · {{ job.location }}</p>
+        <p>
+          Submit your resume for this position.
+          You can submit one application per job.
+        </p>
+
+        {% if error %}
+          <div class="error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post"
+              enctype="multipart/form-data"
+              action="{{ url_for('apply_to_job', job_id=job.id) }}"
+              id="application-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <label for="resume">Your resume</label>
+          <input type="file" id="resume" name="resume"
+                 accept=".pdf,.docx"
+                 aria-describedby="resume-help" required>
+
+          <p id="resume-help" class="muted">
+            PDF or DOCX, up to 10 MB. Use a document with selectable text.
+          </p>
+
+          <button class="button" type="submit" id="submit-application">
+            Submit application
+          </button>
+        </form>
+      </section>
+
+      <script>
+        document.getElementById("application-form")
+          .addEventListener("submit", function () {
+            const button = document.getElementById("submit-application");
+            button.disabled = true;
+            button.textContent = "Submitting...";
+          });
+
+        window.addEventListener("pageshow", function () {
+          const button = document.getElementById("submit-application");
+          button.disabled = false;
+          button.textContent = "Submit application";
+        });
+      </script>
+    {% endif %}
+  </main>
+</body>
+</html>
