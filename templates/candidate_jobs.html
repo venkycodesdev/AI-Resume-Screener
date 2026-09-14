@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ job.title if job else "Browse Jobs" }} | AI Resume Screener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #182235;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: white;
+      border-bottom: 1px solid #dce2ec;
+    }
+    nav, main {
+      max-width: 1120px;
+      margin: auto;
+      padding: 24px;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    a { color: #5037d5; }
+    h1 { line-height: 1.2; }
+    .muted { color: #526176; }
+    .panel, .card {
+      background: white;
+      border: 1px solid #dce2ec;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 16px;
+      margin: 28px 0;
+    }
+    .field { flex: 1 1 220px; }
+    label { display: block; font-weight: bold; }
+    input, select {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px;
+      border: 1px solid #aab6c8;
+      border-radius: 8px;
+      font: inherit;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #583de0;
+      color: white;
+      font: inherit;
+      font-weight: bold;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .button:hover { background: #4228b9; }
+    :focus-visible {
+      outline: 3px solid #087da3;
+      outline-offset: 3px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    .card h2, h1 { overflow-wrap: anywhere; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #eee9ff;
+      color: #5037d5;
+    }
+    .description {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .pagination {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 20px;
+      margin-top: 28px;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav aria-label="Main navigation">
+      <strong>AI Resume Screener</strong>
+      <a href="{{ url_for('candidate_dashboard') }}">My dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    {% if job %}
+      <p>
+        <a href="{{ url_for('candidate_jobs') }}">Back to jobs</a>
+      </p>
+
+      <article class="panel">
+        <span class="badge">Open</span>
+        <h1>{{ job.title }}</h1>
+        <p>{{ job.company }} · {{ job.location }}</p>
+        <p class="muted">
+          {{ employment_types.get(job.employment_type, job.employment_type) }}
+        </p>
+        <h2>Job description</h2>
+        <div class="description">{{ job.description }}</div>
+      </article>
+    {% else %}
+      <h1>Browse Jobs</h1>
+      <p class="muted">Explore open positions and internships.</p>
+
+      <form class="panel filters" method="get"
+            action="{{ url_for('candidate_jobs') }}">
+        <div class="field">
+          <label for="q">Search jobs</label>
+          <input id="q" name="q" value="{{ search }}"
+                 maxlength="150"
+                 placeholder="Job title, company or location">
+        </div>
+
+        <div class="field">
+          <label for="employment_type">Employment type</label>
+          <select id="employment_type" name="employment_type">
+            <option value="">All types</option>
+            {% for value, label in employment_types.items() %}
+              <option value="{{ value }}"
+                {% if selected_type == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button class="button" type="submit">Search</button>
+        <a href="{{ url_for('candidate_jobs') }}">Clear filters</a>
+      </form>
+
+      <p>{{ pagination.total }} matching job(s)</p>
+
+      <section class="grid" aria-label="Available jobs">
+        {% for posting in pagination.items %}
+          <article class="card">
+            <span class="badge">
+              {{ employment_types.get(
+                  posting.employment_type, posting.employment_type
+              ) }}
+            </span>
+            <h2>{{ posting.title }}</h2>
+            <p>{{ posting.company }} · {{ posting.location }}</p>
+            <a class="button"
+               href="{{ url_for('candidate_job_detail', job_id=posting.id) }}">
+              View details
+            </a>
+          </article>
+        {% else %}
+          <div class="panel">
+            <h2>No matching jobs</h2>
+            <p>Try another search or clear your filters.</p>
+          </div>
+        {% endfor %}
+      </section>
+
+      {% if pagination.pages > 1 %}
+        <nav class="pagination" aria-label="Job result pages">
+          {% if pagination.has_prev %}
+            <a href="{{ url_for(
+                'candidate_jobs',
+                page=pagination.prev_num,
+                q=search,
+                employment_type=selected_type
+            ) }}">Previous</a>
+        {% endif %}
+
+        <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+
+        {% if pagination.has_next %}
+            <a href="{{ url_for(
+                'candidate_jobs',
+                page=pagination.next_num,
+                q=search,
+                employment_type=selected_type
+            ) }}">Next</a>
+        {% endif %}
+        </nav>
+    {% endif %}
+    {% endif %}
+</main>
+</body>
+</html>

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
 from xml.sax.saxutils import escape
+from candidate_job_routes import register_candidate_job_routes
 
 from docx import Document
 import pdfplumber
@@ -4481,6 +4482,7 @@ def candidate_dashboard():
         description="Analyze your resume and review your progress.",
         metrics=[("Your saved analyses", report_count)],
         actions=[
+            ("Browse Jobs", "candidate_jobs"),
             ("Analyze my resume", "home"),
             ("View my history", "history"),
         ],
@@ -5569,6 +5571,7 @@ def download_multiple_report():
 
 
 register_job_routes(app, db, JobPosting)
+register_candidate_job_routes(app, JobPosting)
 
 V2 = register_v2_features(
     app,
