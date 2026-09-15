@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Profile | AI Resume Screener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #182235;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    header {
+      background: white;
+      border-bottom: 1px solid #dce2ec;
+    }
+    nav, main {
+      max-width: 1000px;
+      margin: auto;
+      padding: 24px;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    a { color: #5037d5; }
+    h1 { line-height: 1.2; }
+    .muted { color: #526176; }
+    .panel {
+      padding: 28px;
+      background: white;
+      border: 1px solid #dce2ec;
+      border-radius: 16px;
+      margin: 24px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+    .wide { grid-column: 1 / -1; }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #aebbd0;
+      border-radius: 8px;
+      font: inherit;
+      color: #182235;
+      background: white;
+    }
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+    [aria-invalid="true"] { border-color: #b42318; }
+    .hint {
+      margin: 6px 0 0;
+      font-size: 14px;
+      color: #526176;
+    }
+    .error {
+      color: #b42318;
+      margin: 6px 0 0;
+    }
+    .notice {
+      padding: 16px;
+      background: #dcfce7;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+    .error-summary {
+      padding: 16px;
+      background: #fff0ee;
+      border: 1px solid #b42318;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+    .error-summary a { color: #9b1c13; }
+    .button {
+      border: 0;
+      border-radius: 8px;
+      background: #583de0;
+      color: white;
+      padding: 12px 22px;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .button:hover { background: #4228b9; }
+    .button:disabled { opacity: 0.6; cursor: wait; }
+    .actions { margin-top: 24px; }
+    :focus-visible {
+      outline: 3px solid #087da3;
+      outline-offset: 3px;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .panel { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav aria-label="Main navigation">
+      <strong>AI Resume Screener</strong>
+      <a href="{{ url_for('candidate_dashboard') }}">My dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>My Profile</h1>
+    <p>Keep your professional details up to date.</p>
+    <p class="muted">
+      All fields are optional. Profile edits do not change resumes
+      or scores already saved with your applications.
+    </p>
+
+    {% for message in get_flashed_messages() %}
+      <div class="notice" role="status">{{ message }}</div>
+    {% endfor %}
+
+    {% if errors %}
+      <div class="error-summary" role="alert">
+        <strong>Your profile was not saved.</strong>
+        <ul>
+          {% for key, message in errors.items() %}
+            <li>
+              {% if key == 'form' %}
+                {{ message }}
+              {% else %}
+                <a href="#{{ key }}">{{ message }}</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <section class="panel">
+      <h2>{{ current_user.name }}</h2>
+
+      <form method="post"
+            action="{{ url_for('candidate_profile') }}"
+            id="profile-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="grid">
+          {% for key, label, limit, field_type in profile_fields %}
+            <div class="{{ 'wide' if field_type == 'textarea' else '' }}">
+              <label for="{{ key }}">{{ label }}</label>
+
+              {% if field_type == 'textarea' %}
+                <textarea
+                  id="{{ key }}"
+                  name="{{ key }}"
+                  maxlength="{{ limit }}"
+                  aria-invalid="{{ 'true' if key in errors else 'false' }}"
+                  aria-describedby="{{ key }}-hint{% if key in errors %} {{ key }}-error{% endif %}"
+                >{{ values.get(key, '') }}</textarea>
+              {% else %}
+                <input
+                  id="{{ key }}"
+                  name="{{ key }}"
+                  type="{{ field_type }}"
+                  maxlength="{{ limit }}"
+                  value="{{ values.get(key, '') }}"
+                  aria-invalid="{{ 'true' if key in errors else 'false' }}"
+                  aria-describedby="{{ key }}-hint{% if key in errors %} {{ key }}-error{% endif %}"
+                >
+              {% endif %}
+
+              <p class="hint" id="{{ key }}-hint">
+                {% if key == 'skills' %}
+                  Separate skills with commas, for example: Python, Flask, SQL.
+                {% elif key == 'github_url' %}
+                  Example: https://github.com/your-username
+                {% elif key == 'linkedin_url' %}
+                  Example: https://www.linkedin.com/in/your-username
+                {% elif key == 'portfolio_url' %}
+                  Enter a complete URL beginning with https://.
+                {% else %}
+                  Maximum {{ limit }} characters.
+                {% endif %}
+              </p>
+
+              {% if key in errors %}
+                <p class="error" id="{{ key }}-error">
+                  {{ errors[key] }}
+                </p>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <div>
+            <label for="graduation_year">Graduation year</label>
+            <input
+              id="graduation_year"
+              name="graduation_year"
+              type="number"
+              min="1900"
+              max="2100"
+              step="1"
+              value="{{ values.get('graduation_year', '') }}"
+              aria-invalid="{{ 'true' if 'graduation_year' in errors else 'false' }}"
+              aria-describedby="year-hint{% if 'graduation_year' in errors %} year-error{% endif %}"
+            >
+            <p class="hint" id="year-hint">
+              Completed or expected graduation year. Leave blank if unknown.
+            </p>
+            {% if 'graduation_year' in errors %}
+              <p class="error" id="year-error">
+                {{ errors['graduation_year'] }}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="button" type="submit" id="save-button">
+            Save profile
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("profile-form");
+    const button = document.getElementById("save-button");
+
+    form.addEventListener("submit", () => {
+      button.disabled = true;
+      button.textContent = "Saving...";
+    });
+
+    window.addEventListener("pageshow", () => {
+      button.disabled = false;
+      button.textContent = "Save profile";
+    });
+  </script>
+</body>
+</html>

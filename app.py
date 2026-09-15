@@ -3,6 +3,7 @@ import os
 import re
 import zipfile
 from application_score_routes import register_application_score_routes
+from candidate_profile_routes import register_candidate_profile_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -171,7 +172,100 @@ class User(UserMixin, db.Model):
             password,
         )
         
-        
+
+class CandidateProfile(db.Model):
+    __tablename__ = "candidate_profile"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+    )
+
+    headline = db.Column(
+        db.String(150),
+        nullable=False,
+        default="",
+    )
+
+    bio = db.Column(
+        db.Text,
+        nullable=False,
+        default="",
+    )
+
+    location = db.Column(
+        db.String(150),
+        nullable=False,
+        default="",
+    )
+
+    skills = db.Column(
+        db.Text,
+        nullable=False,
+        default="",
+    )
+
+    education = db.Column(
+        db.String(255),
+        nullable=False,
+        default="",
+    )
+
+    graduation_year = db.Column(
+        db.Integer,
+        nullable=True,
+    )
+
+    github_url = db.Column(
+        db.String(500),
+        nullable=False,
+        default="",
+    )
+
+    linkedin_url = db.Column(
+        db.String(500),
+        nullable=False,
+        default="",
+    )
+
+    portfolio_url = db.Column(
+        db.String(500),
+        nullable=False,
+        default="",
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            name="uq_candidate_profile_user_id",
+        ),
+        db.CheckConstraint(
+            "graduation_year IS NULL OR "
+            "(graduation_year >= 1900 AND graduation_year <= 2100)",
+            name="ck_candidate_profile_graduation_year",
+        ),
+    )
+
+
 class JobPosting(db.Model):
     __tablename__ = "job_posting"
 
@@ -227,8 +321,8 @@ class JobPosting(db.Model):
             name="ck_job_posting_employment_type",
         ),
     )
-    
-    
+
+
 class JobApplication(db.Model):
     __tablename__ = "job_application"
 
@@ -4633,6 +4727,7 @@ def candidate_dashboard():
         description="Analyze your resume and review your progress.",
         metrics=[("Your saved analyses", report_count)],
         actions=[
+            ("My Profile", "candidate_profile"),
             ("Browse Jobs", "candidate_jobs"),
             ("My Applications", "candidate_applications"),
             ("Analyze my resume", "home"),
@@ -5724,6 +5819,7 @@ def download_multiple_report():
 
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
+register_candidate_profile_routes(app, db, CandidateProfile)
 register_application_history_routes(app, JobApplication)
 
 register_recruiter_application_routes(
