@@ -54,13 +54,43 @@
     .button {
       display: inline-block;
       padding: 12px 20px;
+      border: 0;
       border-radius: 8px;
       background: #583de0;
       color: white;
+      font: inherit;
       font-weight: bold;
       text-decoration: none;
+      cursor: pointer;
     }
     .button:hover { background: #4228b9; }
+    .button:disabled { opacity: 0.6; cursor: wait; }
+    .notice {
+      padding: 16px;
+      margin-bottom: 20px;
+      background: #dcfce7;
+      border-radius: 8px;
+    }
+    .status-form {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #dce2ec;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #aebbd0;
+      border-radius: 8px;
+      background: white;
+      color: #182235;
+      font: inherit;
+      margin-bottom: 12px;
+    }
     :focus-visible {
       outline: 3px solid #087da3;
       outline-offset: 3px;
@@ -88,17 +118,25 @@
   <main>
     <p><a href="{{ url_for('recruiter_jobs') }}">Back to my jobs</a></p>
 
+    {% for message in get_flashed_messages() %}
+      <div class="notice" role="status">{{ message }}</div>
+    {% endfor %}
+
     <section class="panel">
       <span class="badge">{{ job.status|capitalize }}</span>
       <h1>Applicants for {{ job.title }}</h1>
       <p>
-  <a class="button"
-     href="{{ url_for('recruiter_application_scores', job_id=job.id) }}">
-    View applicant scores
-  </a>
-</p>
+        <a class="button"
+           href="{{ url_for('recruiter_application_scores', job_id=job.id) }}">
+          View applicant scores
+        </a>
+      </p>
       <p>{{ job.company }} · {{ job.location }}</p>
       <p class="muted">{{ pagination.total }} application(s)</p>
+      <p>
+        Review the resume and scoring evidence before making a decision.
+        Candidates can see status updates in My Applications.
+      </p>
     </section>
 
     <section class="grid" aria-label="Job applicants">
@@ -109,9 +147,7 @@
           </span>
 
           <h2>
-            {{ candidate_names.get(
-                submission.candidate_id, "Candidate"
-            ) }}
+            {{ candidate_names.get(submission.candidate_id, "Candidate") }}
           </h2>
 
           <p>Application reference: #{{ submission.id }}</p>
@@ -122,6 +158,10 @@
             Submitted:
             {{ submission.submitted_at.strftime('%d %b %Y, %H:%M') }} UTC
           </p>
+          <p class="muted">
+            Updated:
+            {{ submission.updated_at.strftime('%d %b %Y, %H:%M') }} UTC
+          </p>
 
           <a class="button"
              href="{{ url_for(
@@ -131,6 +171,50 @@
              ) }}">
             Download resume
           </a>
+
+          {% set options = status_transitions.get(submission.status, ()) %}
+          {% if options %}
+            <form class="status-form"
+                  method="post"
+                  action="{{ url_for(
+                      'update_applicant_status',
+                      job_id=job.id,
+                      application_id=submission.id
+                  ) }}">
+              <input type="hidden" name="csrf_token"
+                     value="{{ status_csrf_token }}">
+              <input type="hidden" name="expected_status"
+                     value="{{ submission.status }}">
+              <input type="hidden" name="page"
+                     value="{{ pagination.page }}">
+
+              <label for="status-{{ submission.id }}">
+                Update application #{{ submission.id }}
+              </label>
+              <select id="status-{{ submission.id }}"
+                      name="status"
+                      required
+                      aria-describedby="status-help-{{ submission.id }}">
+                <option value="" selected disabled>Choose a status</option>
+                {% for value in options %}
+                  <option value="{{ value }}">
+                    {{ status_labels[value] }}
+                  </option>
+                {% endfor %}
+              </select>
+
+              <p class="muted" id="status-help-{{ submission.id }}">
+                Rejected and Hired are final decisions in this workflow.
+              </p>
+
+              <button class="button" type="submit">Update status</button>
+            </form>
+          {% else %}
+            <p class="muted">
+              This application is {{ submission.status|replace('_', ' ') }}.
+              No further recruiter status changes are available.
+            </p>
+          {% endif %}
         </article>
       {% else %}
         <div class="panel">
@@ -162,5 +246,32 @@
       </nav>
     {% endif %}
   </main>
+
+  <script>
+    document.querySelectorAll(".status-form").forEach((form) => {
+      form.addEventListener("submit", (event) => {
+        const selected = form.querySelector("select").value;
+        if (selected === "rejected" || selected === "hired") {
+          const label = selected === "hired" ? "Hired" : "Rejected";
+          if (!window.confirm(
+            `Mark this application ${label}? This decision is final.`
+          )) {
+            event.preventDefault();
+            return;
+          }
+        }
+        const button = form.querySelector("button");
+        button.disabled = true;
+        button.textContent = "Updating...";
+      });
+    });
+
+    window.addEventListener("pageshow", () => {
+      document.querySelectorAll(".status-form button").forEach((button) => {
+        button.disabled = false;
+        button.textContent = "Update status";
+      });
+    });
+  </script>
 </body>
 </html>

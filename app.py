@@ -5731,6 +5731,7 @@ register_recruiter_application_routes(
     JobPosting,
     JobApplication,
     User,
+    db,
 )
 
 register_application_routes(
