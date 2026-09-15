@@ -2,6 +2,7 @@ import json
 import os
 import re
 import zipfile
+from application_score_routes import register_application_score_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -303,6 +304,74 @@ class JobApplication(db.Model):
             "('submitted', 'under_review', 'shortlisted', "
             "'rejected', 'hired', 'withdrawn')",
             name="ck_job_application_status",
+        ),
+    )
+    
+    
+class ApplicationScore(db.Model):
+    __tablename__ = "application_score"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    application_id = db.Column(
+        db.Integer,
+        db.ForeignKey("job_application.id"),
+        nullable=False,
+        unique=True,
+    )
+
+    scored_by_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True,
+    )
+
+    overall_score = db.Column(
+        db.Float,
+        nullable=False,
+    )
+
+    score_breakdown = db.Column(
+        db.JSON,
+        nullable=False,
+    )
+
+    weights = db.Column(
+        db.JSON,
+        nullable=False,
+    )
+
+    matching_skills = db.Column(
+        db.JSON,
+        nullable=False,
+    )
+
+    missing_skills = db.Column(
+        db.JSON,
+        nullable=False,
+    )
+
+    explanations = db.Column(
+        db.JSON,
+        nullable=False,
+    )
+
+    scoring_version = db.Column(
+        db.String(50),
+        nullable=False,
+    )
+
+    scored_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "overall_score >= 0 AND overall_score <= 100",
+            name="ck_application_score_range",
         ),
     )
 
@@ -5694,6 +5763,17 @@ V2 = register_v2_features(
     },
 )
 
+register_application_score_routes(
+    app,
+    db,
+    JobPosting,
+    JobApplication,
+    ApplicationScore,
+    User,
+    extract_skills,
+    calculate_score_breakdown,
+    V2,
+)
 
 if __name__ == "__main__":
     debug_enabled = os.environ.get("FLASK_DEBUG", "0") == "1"

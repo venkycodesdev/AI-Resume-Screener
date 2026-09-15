@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Applicant Scores | AI Resume Screener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #182235;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 24px;
+    }
+    a { color: #5037d5; }
+    .panel {
+      background: white;
+      border: 1px solid #dce2ec;
+      border-radius: 14px;
+      padding: 24px;
+      margin: 20px 0;
+      overflow-wrap: anywhere;
+    }
+    .button {
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #583de0;
+      color: white;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .button:disabled { opacity: 0.6; cursor: wait; }
+    .score { color: #5037d5; font-size: 28px; }
+    .muted { color: #526176; }
+    .notice {
+      background: #dcfce7;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+    .warning { background: #fff3cd; }
+    .description { white-space: pre-wrap; }
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .category {
+      padding: 16px;
+      border: 1px solid #dce2ec;
+      border-radius: 10px;
+    }
+    .pagination {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    :focus-visible {
+      outline: 3px solid #087da3;
+      outline-offset: 3px;
+    }
+    @media (max-width: 700px) {
+      .categories { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <a href="{{ url_for('recruiter_job_applicants', job_id=job.id) }}">
+      Back to applicants
+    </a>
+
+    <h1>Applicant Scores</h1>
+    <h2>{{ job.title }}</h2>
+
+    <p>
+      Scores use each application's saved resume and job description.
+      Review the evidence alongside the original resume.
+    </p>
+    <p class="muted">
+      Highest score first. Equal scores are ordered by earliest submission.
+      Application statuses are unchanged.
+    </p>
+
+    {% if mixed_descriptions %}
+      <div class="notice warning">
+        This job's description changed between applications.
+        Review each saved description before comparing scores.
+      </div>
+    {% endif %}
+
+    {% for message in get_flashed_messages() %}
+      <div class="notice" role="status">{{ message }}</div>
+    {% endfor %}
+
+    <form method="post"
+          action="{{ url_for('recruiter_application_scores', job_id=job.id) }}"
+          id="score-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="button" type="submit" id="score-button">
+        Calculate / refresh scores
+      </button>
+    </form>
+
+    <p>{{ pagination.total }} application(s)</p>
+
+    {% for submission in pagination.items %}
+      {% set score = scores.get(submission.id) %}
+      <article class="panel">
+        <p class="muted">
+          Position {{ (pagination.page - 1) * pagination.per_page + loop.index }}
+          · Application #{{ submission.id }}
+          · {{ submission.status|replace('_', ' ')|title }}
+        </p>
+
+        <h2>{{ candidate_names.get(submission.candidate_id, "Candidate") }}</h2>
+
+        {% if score %}
+          <strong class="score">{{ score.overall_score|round(1) }}/100</strong>
+
+          <p>
+            Matched skills:
+            {{ score.matching_skills|join(', ') or "None detected" }}
+          </p>
+          <p>
+            Missing skills:
+            {{ score.missing_skills|join(', ') or "None detected" }}
+          </p>
+
+          <div class="categories">
+            {% for key, label in [
+              ('skills', 'Skills'),
+              ('experience', 'Experience'),
+              ('projects', 'Projects'),
+              ('education', 'Education')
+            ] %}
+              {% set explanation = score.explanations.get(key, {}) %}
+              <section class="category">
+                <h3>{{ label }}: {{ score.score_breakdown.get(key, 0) }}/100</h3>
+                <p class="muted">Weight: {{ score.weights.get(key, 0) }}%</p>
+
+                <strong>Evidence</strong>
+                <ul>
+                  {% for item in explanation.get('evidence', []) %}
+                    <li>{{ item }}</li>
+                  {% else %}
+                    <li>No evidence provided.</li>
+                  {% endfor %}
+                </ul>
+
+                <strong>Gaps or improvements</strong>
+                <ul>
+                  {% for item in explanation.get('missing', []) %}
+                    <li>{{ item }}</li>
+                  {% else %}
+                    <li>None listed.</li>
+                  {% endfor %}
+                </ul>
+              </section>
+            {% endfor %}
+          </div>
+
+          <p class="muted">
+            Scored: {{ score.scored_at.strftime('%d %b %Y, %H:%M') }} UTC
+          </p>
+        {% else %}
+          <p><strong>Not scored</strong></p>
+        {% endif %}
+
+        <details>
+          <summary>Job description used for this application</summary>
+          <p class="description">{{ submission.job_description_snapshot }}</p>
+        </details>
+
+        <p>
+          <a href="{{ url_for(
+              'download_applicant_resume',
+              job_id=job.id,
+              application_id=submission.id
+          ) }}">Download resume</a>
+        </p>
+      </article>
+    {% else %}
+      <div class="panel">No applications yet.</div>
+    {% endfor %}
+
+    {% if pagination.pages > 1 %}
+      <nav class="pagination" aria-label="Score result pages">
+        {% if pagination.has_prev %}
+          <a href="{{ url_for(
+              'recruiter_application_scores',
+              job_id=job.id,
+              page=pagination.prev_num
+          ) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}
+          <a href="{{ url_for(
+              'recruiter_application_scores',
+              job_id=job.id,
+              page=pagination.next_num
+          ) }}">Next</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </main>
+
+  <script>
+    const button = document.getElementById("score-button");
+    document.getElementById("score-form").addEventListener("submit", () => {
+      button.disabled = true;
+      button.textContent = "Calculating...";
+    });
+    window.addEventListener("pageshow", () => {
+      button.disabled = false;
+      button.textContent = "Calculate / refresh scores";
+    });
+  </script>
+</body>
+</html>

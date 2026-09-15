@@ -91,6 +91,12 @@
     <section class="panel">
       <span class="badge">{{ job.status|capitalize }}</span>
       <h1>Applicants for {{ job.title }}</h1>
+      <p>
+  <a class="button"
+     href="{{ url_for('recruiter_application_scores', job_id=job.id) }}">
+    View applicant scores
+  </a>
+</p>
       <p>{{ job.company }} · {{ job.location }}</p>
       <p class="muted">{{ pagination.total }} application(s)</p>
     </section>
