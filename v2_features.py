@@ -12,7 +12,15 @@ from io import BytesIO
 from types import SimpleNamespace
 
 from docx import Document
-from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
+from flask import (
+    Blueprint,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from flask_login import current_user, login_required
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -59,30 +67,81 @@ def register_v2_features(app, db, User, Analysis, helpers):
     class ScoringPreference(db.Model):
         __tablename__ = "scoring_preference"
         id = db.Column(db.Integer, primary_key=True)
-        user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False, index=True)
-        weights = db.Column(db.Text, nullable=False, default=lambda: json.dumps(DEFAULT_WEIGHTS))
-        updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+        user_id = db.Column(
+            db.Integer,
+            db.ForeignKey("user.id"),
+            unique=True,
+            nullable=False,
+            index=True,
+        )
+        weights = db.Column(
+            db.Text,
+            nullable=False,
+            default=lambda: json.dumps(DEFAULT_WEIGHTS),
+        )
+        updated_at = db.Column(
+            db.DateTime,
+            nullable=False,
+            default=lambda: datetime.now(timezone.utc),
+        )
 
     class AnalysisContext(db.Model):
         __tablename__ = "analysis_context"
         id = db.Column(db.Integer, primary_key=True)
-        user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-        analysis_id = db.Column(db.Integer, db.ForeignKey("analysis.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+        user_id = db.Column(
+            db.Integer,
+            db.ForeignKey("user.id"),
+            nullable=False,
+            index=True,
+        )
+        analysis_id = db.Column(
+            db.Integer,
+            db.ForeignKey("analysis.id", ondelete="CASCADE"),
+            unique=True,
+            nullable=False,
+            index=True,
+        )
         resume_text = db.Column(db.Text, nullable=False, default="")
         explanations = db.Column(db.Text, nullable=False, default="{}")
-        weights = db.Column(db.Text, nullable=False, default=lambda: json.dumps(DEFAULT_WEIGHTS))
-        created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+        weights = db.Column(
+            db.Text,
+            nullable=False,
+            default=lambda: json.dumps(DEFAULT_WEIGHTS),
+        )
+        created_at = db.Column(
+            db.DateTime,
+            nullable=False,
+            default=lambda: datetime.now(timezone.utc),
+        )
 
     class ResumeRewrite(db.Model):
         __tablename__ = "resume_rewrite"
         id = db.Column(db.Integer, primary_key=True)
-        user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
-        analysis_id = db.Column(db.Integer, db.ForeignKey("analysis.id", ondelete="CASCADE"), nullable=False, index=True)
+        user_id = db.Column(
+            db.Integer,
+            db.ForeignKey("user.id"),
+            nullable=False,
+            index=True,
+        )
+        analysis_id = db.Column(
+            db.Integer,
+            db.ForeignKey("analysis.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
         tone = db.Column(db.String(30), nullable=False, default="professional")
         original_text = db.Column(db.Text, nullable=False)
         rewritten_text = db.Column(db.Text, nullable=False)
-        created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-        updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+        created_at = db.Column(
+            db.DateTime,
+            nullable=False,
+            default=lambda: datetime.now(timezone.utc),
+        )
+        updated_at = db.Column(
+            db.DateTime,
+            nullable=False,
+            default=lambda: datetime.now(timezone.utc),
+        )
 
     bp = Blueprint("v2", __name__)
 
@@ -97,16 +156,31 @@ def register_v2_features(app, db, User, Analysis, helpers):
     def weighted_score(score_breakdown, weights=None):
         selected = _clean_weights(weights or get_user_weights())
         score = sum(
-            max(0, min(100, int(score_breakdown.get(key, 0)))) * selected[key] / 100
+            max(0, min(100, int(score_breakdown.get(key, 0))))
+            * selected[key]
+            / 100
             for key in DEFAULT_WEIGHTS
         )
         return max(0, min(100, round(score)))
 
-    def build_explanations(resume_text, job_description, score_breakdown, matching_skills, missing_skills):
-        resume_lines = [line.strip(" -\t") for line in resume_text.splitlines() if line.strip()]
+    def build_explanations(
+        resume_text,
+        job_description,
+        score_breakdown,
+        matching_skills,
+        missing_skills,
+    ):
+        resume_lines = [
+            line.strip(" -\t")
+            for line in resume_text.splitlines()
+            if line.strip()
+        ]
         evidence_lines = []
         for line in resume_lines:
-            if any(re.search(rf"(?<!\w){re.escape(skill)}(?!\w)", line, re.I) for skill in matching_skills):
+            if any(
+                re.search(rf"(?<!\w){re.escape(skill)}(?!\w)", line, re.I)
+                for skill in matching_skills
+            ):
                 evidence_lines.append(line[:220])
             if len(evidence_lines) == 4:
                 break
@@ -115,8 +189,10 @@ def register_v2_features(app, db, User, Analysis, helpers):
             return {
                 "label": label,
                 "score": int(score or 0),
-                "evidence": evidence[:4] or ["No strong direct evidence was detected in this section."],
-                "missing": missing[:4] or ["No major gap detected for this category."],
+                "evidence": evidence[:4]
+                or ["No strong direct evidence was detected in this section."],
+                "missing": missing[:4]
+                or ["No major gap detected for this category."],
             }
 
         exp_section = helpers["extract_experience_section"](resume_text)
@@ -124,31 +200,69 @@ def register_v2_features(app, db, User, Analysis, helpers):
         education_section = helpers["extract_education_section"](resume_text)
         return {
             "skills": category(
-                "Skills Match", score_breakdown.get("skills"),
-                ([f"Matched skill: {skill}" for skill in matching_skills] + evidence_lines),
-                [f"Required skill not detected: {skill}" for skill in missing_skills],
+                "Skills Match",
+                score_breakdown.get("skills"),
+                (
+                    [f"Matched skill: {skill}" for skill in matching_skills]
+                    + evidence_lines
+                ),
+                [
+                    f"Required skill not detected: {skill}"
+                    for skill in missing_skills
+                ],
             ),
             "experience": category(
-                "Experience Relevance", score_breakdown.get("experience"),
-                [line.strip()[:220] for line in exp_section.splitlines() if len(line.strip()) > 12],
-                ["Add truthful, role-relevant responsibilities.", "Quantify outcomes only when the number is known."],
+                "Experience Relevance",
+                score_breakdown.get("experience"),
+                [
+                    line.strip()[:220]
+                    for line in exp_section.splitlines()
+                    if len(line.strip()) > 12
+                ],
+                [
+                    "Add truthful, role-relevant responsibilities.",
+                    "Quantify outcomes only when the number is known.",
+                ],
             ),
             "projects": category(
-                "Projects Relevance", score_breakdown.get("projects"),
-                [line.strip()[:220] for line in project_section.splitlines() if len(line.strip()) > 12],
-                ["State your contribution, technologies and verified outcome for each project."],
+                "Projects Relevance",
+                score_breakdown.get("projects"),
+                [
+                    line.strip()[:220]
+                    for line in project_section.splitlines()
+                    if len(line.strip()) > 12
+                ],
+                [
+                    (
+                        "State your contribution, technologies and verified "
+                        "outcome for each project."
+                    )
+                ],
             ),
             "education": category(
-                "Education Match", score_breakdown.get("education"),
-                [line.strip()[:220] for line in education_section.splitlines() if len(line.strip()) > 8],
-                ["Include degree, field, institution and graduation year when applicable."],
+                "Education Match",
+                score_breakdown.get("education"),
+                [
+                    line.strip()[:220]
+                    for line in education_section.splitlines()
+                    if len(line.strip()) > 8
+                ],
+                [
+                    "Include degree, field, institution and graduation year "
+                    "when applicable."
+                ],
             ),
         }
 
     def save_analysis_context(analysis, resume_text, explanations, weights):
-        context = AnalysisContext.query.filter_by(analysis_id=analysis.id).first()
+        context = (
+            AnalysisContext.query.filter_by(analysis_id=analysis.id).first()
+        )
         if context is None:
-            context = AnalysisContext(user_id=analysis.user_id, analysis_id=analysis.id)
+            context = AnalysisContext(
+                user_id=analysis.user_id,
+                analysis_id=analysis.id,
+            )
             db.session.add(context)
         context.resume_text = resume_text
         context.explanations = json.dumps(explanations)
@@ -161,11 +275,26 @@ def register_v2_features(app, db, User, Analysis, helpers):
             return ""
         heading = stripped.rstrip(":").lower()
         known_headings = {
-            "summary", "professional summary", "objective", "career objective", "experience",
-            "work experience", "employment", "education", "skills", "technical skills",
-            "projects", "academic projects", "certifications", "achievements", "languages",
+            "summary",
+            "professional summary",
+            "objective",
+            "career objective",
+            "experience",
+            "work experience",
+            "employment",
+            "education",
+            "skills",
+            "technical skills",
+            "projects",
+            "academic projects",
+            "certifications",
+            "achievements",
+            "languages",
         }
-        if heading in known_headings or (len(stripped) < 35 and stripped.isupper()):
+        if (
+            heading in known_headings
+            or (len(stripped) < 35 and stripped.isupper())
+        ):
             return stripped.rstrip(":").title()
 
         prefix = ""
@@ -189,8 +318,15 @@ def register_v2_features(app, db, User, Analysis, helpers):
         if body and body[0].islower():
             body = body[0].upper() + body[1:]
         if tone == "concise":
-            body = re.sub(r"\b(very|really|successfully|various|different)\b\s*", "", body, flags=re.I)
-        elif tone == "technical" and re.search(r"\b(developed|built|implemented|designed)\b", body, re.I):
+            body = re.sub(
+                r"\b(very|really|successfully|various|different)\b\s*",
+                "",
+                body,
+                flags=re.I,
+            )
+        elif tone == "technical" and re.search(
+            r"\b(developed|built|implemented|designed)\b", body, re.I
+        ):
             body = re.sub(r"\bproject\b", "solution", body, flags=re.I)
         if body and body[-1] not in ".:;!?":
             body += "."
@@ -198,7 +334,9 @@ def register_v2_features(app, db, User, Analysis, helpers):
 
     def rewrite_resume_text(original_text, tone):
         tone = tone if tone in ALLOWED_TONES else "professional"
-        improved = [improve_line(line, tone) for line in original_text.splitlines()]
+        improved = [
+            improve_line(line, tone) for line in original_text.splitlines()
+        ]
         text = "\n".join(improved)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
         return text
@@ -208,8 +346,12 @@ def register_v2_features(app, db, User, Analysis, helpers):
         questions = _json(analysis.interview_questions, {})
         matching = _json(analysis.matching_skills, [])
         missing = _json(analysis.missing_skills, [])
-        recommendation = helpers["generate_final_recommendation"](analysis.match_score, matching, missing)
-        suggestions = helpers["generate_targeted_recommendations"](breakdown, missing)
+        recommendation = helpers["generate_final_recommendation"](
+            analysis.match_score, matching, missing
+        )
+        suggestions = helpers[
+            "generate_targeted_recommendations"
+        ](breakdown, missing)
         suggestions = [
             item.get("message", "") if isinstance(item, dict) else str(item)
             for item in suggestions
@@ -224,7 +366,9 @@ def register_v2_features(app, db, User, Analysis, helpers):
             "experience_score": int(breakdown.get("experience", 0)),
             "education_score": int(breakdown.get("education", 0)),
             "projects_score": int(breakdown.get("projects", 0)),
-            "ats_label": helpers["calculate_ats_rating"](analysis.match_score).get("label", "Not available"),
+            "ats_label": helpers["calculate_ats_rating"](
+                analysis.match_score
+            ).get("label", "Not available"),
             "strength_score": analysis.match_score,
             "strength_label": "Saved analysis",
             "final_title": recommendation.get("title", "Resume Analysis"),
@@ -232,8 +376,12 @@ def register_v2_features(app, db, User, Analysis, helpers):
             "next_action": recommendation.get("next_action", ""),
             "matching_skills": matching,
             "missing_skills": missing,
-            "strong_areas": helpers["generate_candidate_strengths"](breakdown, matching),
-            "improvement_areas": helpers["generate_candidate_weaknesses"](breakdown, missing),
+            "strong_areas": helpers["generate_candidate_strengths"](
+                breakdown, matching
+            ),
+            "improvement_areas": helpers["generate_candidate_weaknesses"](
+                breakdown, missing
+            ),
             "suggestions": [item for item in suggestions if item],
             "technical_questions": questions.get("technical_questions", []),
             "resume_questions": questions.get("resume_questions", []),
@@ -248,7 +396,10 @@ def register_v2_features(app, db, User, Analysis, helpers):
         analysis_type = request.args.get("type", "all")
         recommendation = request.args.get("recommendation", "all")
         try:
-            minimum_score = max(0, min(100, int(request.args.get("min_score", 0))))
+            minimum_score = max(
+                0,
+                min(100, int(request.args.get("min_score", 0))),
+            )
         except ValueError:
             minimum_score = 0
         if search:
@@ -257,31 +408,72 @@ def register_v2_features(app, db, User, Analysis, helpers):
             query = query.filter_by(analysis_type=analysis_type)
         query = query.filter(Analysis.match_score >= minimum_score)
         sort = request.args.get("sort", "newest")
-        order = Analysis.match_score.desc() if sort == "score" else Analysis.created_at.desc()
+        order = (
+            Analysis.match_score.desc()
+            if sort == "score"
+            else Analysis.created_at.desc()
+        )
         analyses = query.order_by(order).all()
         if recommendation in {"strong", "potential", "low"}:
-            ranges = {"strong": (75, 100), "potential": (50, 74), "low": (0, 49)}
+            ranges = {
+                "strong": (75, 100),
+                "potential": (50, 74),
+                "low": (0, 49),
+            }
             low, high = ranges[recommendation]
-            analyses = [item for item in analyses if low <= item.match_score <= high]
+            analyses = [
+                item
+                for item in analyses
+                if low <= item.match_score <= high
+            ]
         return render_template(
-            "reports.html", analyses=analyses, search=search, analysis_type=analysis_type,
-            minimum_score=minimum_score, recommendation=recommendation, sort=sort,
+            "reports.html",
+            analyses=analyses,
+            search=search,
+            analysis_type=analysis_type,
+            minimum_score=minimum_score,
+            recommendation=recommendation,
+            sort=sort,
         )
 
     @bp.route("/reports/<int:analysis_id>/download")
     @login_required
     def download_saved_report(analysis_id):
-        analysis = Analysis.query.filter_by(id=analysis_id, user_id=current_user.id).first_or_404()
+        analysis = (
+            Analysis.query.filter_by(
+                id=analysis_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
         buffer = helpers["build_analysis_pdf"](_analysis_report_data(analysis))
-        safe_name = secure_filename(analysis.resume_filename.rsplit(".", 1)[0]) or "resume"
-        return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=f"{safe_name}_saved_report.pdf")
+        safe_name = (
+            secure_filename(analysis.resume_filename.rsplit(".", 1)[0])
+            or "resume"
+        )
+        return send_file(
+            buffer,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"{safe_name}_saved_report.pdf",
+        )
 
     @bp.route("/reports/<int:analysis_id>/delete", methods=["POST"])
     @login_required
     def delete_saved_report(analysis_id):
-        analysis = Analysis.query.filter_by(id=analysis_id, user_id=current_user.id).first_or_404()
-        AnalysisContext.query.filter_by(analysis_id=analysis.id, user_id=current_user.id).delete()
-        ResumeRewrite.query.filter_by(analysis_id=analysis.id, user_id=current_user.id).delete()
+        analysis = (
+            Analysis.query.filter_by(
+                id=analysis_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
+        AnalysisContext.query.filter_by(
+            analysis_id=analysis.id,
+            user_id=current_user.id,
+        ).delete()
+        ResumeRewrite.query.filter_by(
+            analysis_id=analysis.id,
+            user_id=current_user.id,
+        ).delete()
         db.session.delete(analysis)
         db.session.commit()
         flash("Saved report deleted successfully.", "success")
@@ -293,32 +485,72 @@ def register_v2_features(app, db, User, Analysis, helpers):
         weights = get_user_weights()
         if request.method == "POST":
             try:
-                submitted = {key: int(request.form.get(key, "0")) for key in DEFAULT_WEIGHTS}
+                submitted = {
+                    key: int(request.form.get(key, "0"))
+                    for key in DEFAULT_WEIGHTS
+                }
             except ValueError:
                 submitted = {}
-            if any(value < 0 or value > 100 for value in submitted.values()) or sum(submitted.values()) != 100:
-                flash("Each weight must be between 0 and 100, and the total must equal 100%.", "danger")
-                return render_template("scoring_weights.html", weights=submitted or weights)
-            preference = ScoringPreference.query.filter_by(user_id=current_user.id).first()
+            if (
+                any(value < 0 or value > 100 for value in submitted.values())
+                or sum(submitted.values()) != 100
+            ):
+                flash(
+                    "Each weight must be between 0 and 100, and the total "
+                    "must equal 100%.",
+                    "danger",
+                )
+                return render_template(
+                    "scoring_weights.html",
+                    weights=submitted or weights,
+                )
+            preference = ScoringPreference.query.filter_by(
+                user_id=current_user.id
+            ).first()
             if preference is None:
                 preference = ScoringPreference(user_id=current_user.id)
                 db.session.add(preference)
             preference.weights = json.dumps(submitted)
             preference.updated_at = datetime.now(timezone.utc)
             db.session.commit()
-            flash("Scoring weights saved. They now apply to single and multiple-resume analysis.", "success")
+            flash(
+                "Scoring weights saved. They now apply to single and "
+                "multiple-resume analysis.",
+                "success",
+            )
             return redirect(url_for("v2.scoring_weights"))
         return render_template("scoring_weights.html", weights=weights)
 
     @bp.route("/rewrite/<int:analysis_id>", methods=["GET", "POST"])
     @login_required
     def rewrite_resume(analysis_id):
-        analysis = Analysis.query.filter_by(id=analysis_id, user_id=current_user.id).first_or_404()
-        context = AnalysisContext.query.filter_by(analysis_id=analysis.id, user_id=current_user.id).first()
+        analysis = (
+            Analysis.query.filter_by(
+                id=analysis_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
+        context = AnalysisContext.query.filter_by(
+            analysis_id=analysis.id,
+            user_id=current_user.id,
+        ).first()
         if context is None or not context.resume_text.strip():
-            flash("Resume rewriting is available for analyses created after the Version 2 upgrade. Analyze the resume again first.", "warning")
-            return redirect(url_for("analysis_details", analysis_id=analysis.id))
-        rewrite = ResumeRewrite.query.filter_by(analysis_id=analysis.id, user_id=current_user.id).order_by(ResumeRewrite.updated_at.desc()).first()
+            flash(
+                "Resume rewriting is available for analyses created after "
+                "the Version 2 upgrade. Analyze the resume again first.",
+                "warning",
+            )
+            return redirect(
+                url_for("analysis_details", analysis_id=analysis.id)
+            )
+        rewrite = (
+            ResumeRewrite.query.filter_by(
+                analysis_id=analysis.id,
+                user_id=current_user.id,
+            )
+            .order_by(ResumeRewrite.updated_at.desc())
+            .first()
+        )
         if request.method == "POST":
             action = request.form.get("action", "generate")
             tone = request.form.get("tone", "professional")
@@ -328,13 +560,18 @@ def register_v2_features(app, db, User, Analysis, helpers):
                 rewritten = request.form.get("rewritten_text", "").strip()
                 if len(rewritten.split()) < 3:
                     flash("The rewritten resume cannot be empty.", "danger")
-                    return redirect(url_for("v2.rewrite_resume", analysis_id=analysis.id))
+                    return redirect(
+                        url_for("v2.rewrite_resume", analysis_id=analysis.id)
+                    )
             else:
                 rewritten = rewrite_resume_text(context.resume_text, tone)
             if rewrite is None:
                 rewrite = ResumeRewrite(
-                    user_id=current_user.id, analysis_id=analysis.id,
-                    original_text=context.resume_text, rewritten_text=rewritten, tone=tone,
+                    user_id=current_user.id,
+                    analysis_id=analysis.id,
+                    original_text=context.resume_text,
+                    rewritten_text=rewritten,
+                    tone=tone,
                 )
                 db.session.add(rewrite)
             else:
@@ -342,17 +579,42 @@ def register_v2_features(app, db, User, Analysis, helpers):
                 rewrite.tone = tone
                 rewrite.updated_at = datetime.now(timezone.utc)
             db.session.commit()
-            flash("Resume rewrite saved. Review every statement before downloading.", "success")
-            return redirect(url_for("v2.rewrite_resume", analysis_id=analysis.id))
+            flash(
+                "Resume rewrite saved. Review every statement before "
+                "downloading.",
+                "success",
+            )
+            return redirect(
+                url_for("v2.rewrite_resume", analysis_id=analysis.id)
+            )
         explanations = _json(context.explanations, {})
-        return render_template("rewrite.html", analysis=analysis, context=context, rewrite=rewrite, explanations=explanations)
+        return render_template(
+            "rewrite.html",
+            analysis=analysis,
+            context=context,
+            rewrite=rewrite,
+            explanations=explanations,
+        )
 
     @bp.route("/rewrite/<int:rewrite_id>/download/<file_format>")
     @login_required
     def download_rewrite(rewrite_id, file_format):
-        rewrite = ResumeRewrite.query.filter_by(id=rewrite_id, user_id=current_user.id).first_or_404()
-        analysis = Analysis.query.filter_by(id=rewrite.analysis_id, user_id=current_user.id).first_or_404()
-        safe_name = secure_filename(analysis.resume_filename.rsplit(".", 1)[0]) or "resume"
+        rewrite = (
+            ResumeRewrite.query.filter_by(
+                id=rewrite_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
+        analysis = (
+            Analysis.query.filter_by(
+                id=rewrite.analysis_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
+        safe_name = (
+            secure_filename(analysis.resume_filename.rsplit(".", 1)[0])
+            or "resume"
+        )
         if file_format == "docx":
             document = Document()
             for line in rewrite.rewritten_text.splitlines():
@@ -368,52 +630,121 @@ def register_v2_features(app, db, User, Analysis, helpers):
             buffer = BytesIO()
             document.save(buffer)
             buffer.seek(0)
-            return send_file(buffer, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document", as_attachment=True, download_name=f"{safe_name}_rewritten.docx")
+            return send_file(
+                buffer,
+                mimetype=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+                as_attachment=True,
+                download_name=f"{safe_name}_rewritten.docx",
+            )
         if file_format == "pdf":
             buffer = BytesIO()
             styles = getSampleStyleSheet()
-            story = [Paragraph("Improved Resume", styles["Title"]), Spacer(1, 12)]
+            story = [
+                Paragraph("Improved Resume", styles["Title"]),
+                Spacer(1, 12),
+            ]
             for line in rewrite.rewritten_text.splitlines():
                 clean = line.strip()
                 if clean:
-                    story.append(Paragraph(clean.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), styles["BodyText"]))
+                    story.append(
+                        Paragraph(
+                            clean.replace("&", "&amp;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;"),
+                            styles["BodyText"],
+                        )
+                    )
                     story.append(Spacer(1, 5))
-            SimpleDocTemplate(buffer, pagesize=A4, title="Improved Resume").build(story)
+            SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                title="Improved Resume",
+            ).build(story)
             buffer.seek(0)
-            return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=f"{safe_name}_rewritten.pdf")
+            return send_file(
+                buffer,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"{safe_name}_rewritten.pdf",
+            )
         flash("Unsupported download format.", "danger")
-        return redirect(url_for("v2.rewrite_resume", analysis_id=rewrite.analysis_id))
+        return redirect(
+            url_for("v2.rewrite_resume", analysis_id=rewrite.analysis_id)
+        )
 
     @bp.route("/rewrite/<int:rewrite_id>/reanalyze", methods=["POST"])
     @login_required
     def reanalyze_rewrite(rewrite_id):
-        rewrite = ResumeRewrite.query.filter_by(id=rewrite_id, user_id=current_user.id).first_or_404()
-        source = Analysis.query.filter_by(id=rewrite.analysis_id, user_id=current_user.id).first_or_404()
+        rewrite = (
+            ResumeRewrite.query.filter_by(
+                id=rewrite_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
+        source = (
+            Analysis.query.filter_by(
+                id=rewrite.analysis_id,
+                user_id=current_user.id,
+            ).first_or_404()
+        )
         text = rewrite.rewritten_text
         job_description = source.job_description
         resume_skills = helpers["extract_skills"](text)
         job_skills = helpers["extract_skills"](job_description)
         matching = sorted(set(resume_skills) & set(job_skills))
         missing = sorted(set(job_skills) - set(resume_skills))
-        breakdown = helpers["calculate_score_breakdown"](text, job_description, matching, job_skills)
+        breakdown = helpers["calculate_score_breakdown"](
+            text,
+            job_description,
+            matching,
+            job_skills,
+        )
         weights = get_user_weights()
         score = weighted_score(breakdown, weights)
-        questions = helpers["generate_interview_questions"](text, job_description, resume_skills, matching, missing, job_skills)
+        questions = helpers["generate_interview_questions"](
+            text,
+            job_description,
+            resume_skills,
+            matching,
+            missing,
+            job_skills,
+        )
         analysis = Analysis(
-            user_id=current_user.id, resume_filename=f"rewritten_{source.resume_filename}",
-            analysis_type="single", job_description=job_description, match_score=score,
-            detected_skills=json.dumps(resume_skills), matching_skills=json.dumps(matching),
-            missing_skills=json.dumps(missing), candidate_rank=None,
-            interview_questions=json.dumps(questions), score_breakdown=json.dumps(breakdown),
+            user_id=current_user.id,
+            resume_filename=f"rewritten_{source.resume_filename}",
+            analysis_type="single",
+            job_description=job_description,
+            match_score=score,
+            detected_skills=json.dumps(resume_skills),
+            matching_skills=json.dumps(matching),
+            missing_skills=json.dumps(missing),
+            candidate_rank=None,
+            interview_questions=json.dumps(questions),
+            score_breakdown=json.dumps(breakdown),
         )
         db.session.add(analysis)
         db.session.flush()
-        explanations = build_explanations(text, job_description, breakdown, matching, missing)
+        explanations = build_explanations(
+            text,
+            job_description,
+            breakdown,
+            matching,
+            missing,
+        )
         save_analysis_context(analysis, text, explanations, weights)
         db.session.commit()
         return render_template(
-            "reanalyze_result.html", source=source, analysis=analysis, score_breakdown=breakdown,
-            matching_skills=matching, missing_skills=missing, explanations=explanations, weights=weights,
+            "reanalyze_result.html",
+            source=source,
+            analysis=analysis,
+            score_breakdown=breakdown,
+            matching_skills=matching,
+            missing_skills=missing,
+            explanations=explanations,
+            weights=weights,
         )
 
     app.register_blueprint(bp)
