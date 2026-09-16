@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Recruiter Access{% endblock %} | AI Resume Screener</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #182235;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    header { background: white; border-bottom: 1px solid #dce2ec; }
+    nav, main { max-width: 1000px; margin: auto; padding: 24px; }
+    nav { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    a { color: #5037d5; }
+    .panel {
+      background: white;
+      padding: 24px;
+      border: 1px solid #dce2ec;
+      border-radius: 14px;
+      margin: 20px 0;
+      overflow-wrap: anywhere;
+    }
+    label { display: block; font-weight: bold; margin: 16px 0 8px; }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #aebbd0;
+      border-radius: 8px;
+      font: inherit;
+      background: white;
+      color: #182235;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    button {
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #583de0;
+      color: white;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .reject { background: #a4262c; }
+    .muted { color: #526176; }
+    .notice { background: #dcfce7; padding: 16px; border-radius: 8px; }
+    .errors { background: #fff0ee; padding: 16px; border-radius: 8px; }
+    .text { white-space: pre-wrap; }
+    .pagination { display: flex; gap: 20px; flex-wrap: wrap; }
+    :focus-visible { outline: 3px solid #087da3; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav aria-label="Main navigation">
+      <strong>AI Resume Screener</strong>
+      <a href="{{ url_for('dashboard') }}">My dashboard</a>
+    </nav>
+  </header>
+  <main>
+    {% for message in get_flashed_messages() %}
+      <p class="notice" role="status">{{ message }}</p>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

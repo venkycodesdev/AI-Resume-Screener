@@ -1,0 +1,79 @@
+{% extends "recruiter_access_base.html" %}
+
+{% block title %}Request Recruiter Access{% endblock %}
+
+{% block content %}
+  <h1>Request recruiter access</h1>
+
+  {% if submission %}
+    <section class="panel">
+      <h2>{{ submission.status|capitalize }}</h2>
+      <p>Request reference: #{{ submission.id }}</p>
+      <p><strong>Company:</strong> {{ submission.company_name }}</p>
+      {% if submission.company_website %}
+        <p><strong>Website:</strong> {{ submission.company_website }}</p>
+      {% endif %}
+      <p class="text">{{ submission.reason }}</p>
+      <p class="muted">
+        Submitted:
+        {{ submission.submitted_at.strftime('%d %b %Y, %H:%M') }} UTC
+      </p>
+
+      {% if submission.status == 'pending' %}
+        <p>An administrator will review your request.</p>
+        <p>
+          Once approved, open My dashboard to access your recruiter workspace.
+        </p>
+      {% elif submission.status == 'rejected' %}
+        <h3>Review note</h3>
+        <p class="text">{{ submission.review_note }}</p>
+        <p>Your candidate access remains available.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <p>
+      Tell us about your company and hiring needs.
+      An administrator must approve your request before you can post jobs.
+    </p>
+    <p>
+      Approval switches this account to recruiter access.
+      Your existing candidate records remain stored, but candidate pages
+      will no longer be available to this account.
+    </p>
+
+    {% if errors %}
+      <div class="errors" role="alert">
+        <strong>Your request was not submitted.</strong>
+        <ul>
+          {% for error in errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <form class="panel" method="post"
+          action="{{ url_for('candidate_recruiter_access') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <label for="company_name">Company name</label>
+      <input id="company_name" name="company_name" maxlength="150"
+             value="{{ values.company_name }}" required>
+
+      <label for="company_website">Company website (optional)</label>
+      <input id="company_website" name="company_website" type="url"
+             maxlength="500" value="{{ values.company_website }}"
+             placeholder="https://example.com">
+
+      <label for="reason">Why do you need recruiter access?</label>
+      <textarea id="reason" name="reason" minlength="20" maxlength="2000"
+                required>{{ values.reason }}</textarea>
+      <p class="muted">
+        Describe your role at the company and the positions you plan to hire for.
+        Use 20–2000 characters.
+      </p>
+
+      <button type="submit">Submit request</button>
+    </form>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "recruiter_access_base.html" %}
+
+{% block title %}Recruiter Requests{% endblock %}
+
+{% block content %}
+  <h1>Recruiter access requests</h1>
+  <p>Review company details and hiring needs before granting access.</p>
+
+  <form method="get" class="panel"
+        action="{{ url_for('admin_recruiter_requests') }}">
+    <label for="status">Request status</label>
+    <select id="status" name="status">
+      {% for value in ['pending', 'approved', 'rejected', 'all'] %}
+        <option value="{{ value }}"
+                {% if value == selected_status %}selected{% endif %}>
+          {{ value|capitalize }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit">Filter</button>
+  </form>
+
+  <p>{{ pagination.total }} request(s)</p>
+
+  {% for item in pagination.items %}
+    {% set applicant = users.get(item.user_id) %}
+    <article class="panel">
+      <h2>{{ item.company_name }}</h2>
+      <p>Request #{{ item.id }} · {{ item.status|capitalize }}</p>
+
+      {% if applicant %}
+        <p><strong>Applicant:</strong> {{ applicant.name }}</p>
+        <p><strong>Email:</strong> {{ applicant.email }}</p>
+        <p><strong>Current role:</strong> {{ applicant.role }}</p>
+      {% else %}
+        <p>Applicant account unavailable.</p>
+      {% endif %}
+
+      {% if item.company_website %}
+        <p><strong>Website:</strong> {{ item.company_website }}</p>
+      {% endif %}
+
+      <h3>Hiring needs</h3>
+      <p class="text">{{ item.reason }}</p>
+      <p class="muted">
+        Submitted: {{ item.submitted_at.strftime('%d %b %Y, %H:%M') }} UTC
+      </p>
+
+      {% if item.status == 'pending' and applicant
+            and applicant.role == 'candidate'
+            and applicant.id != current_user.id %}
+        <form method="post"
+              action="{{ url_for('review_recruiter_request', request_id=item.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <label for="note-{{ item.id }}">Review note</label>
+          <textarea id="note-{{ item.id }}" name="review_note"
+                    maxlength="2000"></textarea>
+          <p class="muted">
+            Required for rejection. This note is visible to the applicant.
+          </p>
+
+          <button type="submit" name="decision" value="approved">
+            Approve recruiter access
+          </button>
+          <button class="reject" type="submit"
+                  name="decision" value="rejected">
+            Reject request
+          </button>
+        </form>
+      {% elif item.status == 'pending' %}
+        <p>This request cannot be reviewed for the account's current role.</p>
+      {% else %}
+        {% set reviewer = users.get(item.reviewed_by_id) %}
+        <p>
+          Reviewed by:
+          {{ reviewer.name if reviewer else 'Administrator' }}
+        </p>
+        {% if item.reviewed_at %}
+          <p class="muted">
+            Reviewed: {{ item.reviewed_at.strftime('%d %b %Y, %H:%M') }} UTC
+          </p>
+        {% endif %}
+        <p class="text">{{ item.review_note or 'No review note.' }}</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <p class="panel">No requests match this filter.</p>
+  {% endfor %}
+
+  {% if pagination.pages > 1 %}
+    <nav class="pagination" aria-label="Request pages">
+      {% if pagination.has_prev %}
+        <a href="{{ url_for(
+            'admin_recruiter_requests',
+            status=selected_status,
+            page=pagination.prev_num
+        ) }}">Previous</a>
+      {% endif %}
+
+      <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+
+      {% if pagination.has_next %}
+        <a href="{{ url_for(
+            'admin_recruiter_requests',
+            status=selected_status,
+            page=pagination.next_num
+        ) }}">Next</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -4,6 +4,7 @@ import re
 import zipfile
 from application_score_routes import register_application_score_routes
 from candidate_profile_routes import register_candidate_profile_routes
+from recruiter_access_routes import register_recruiter_access_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -262,6 +263,93 @@ class CandidateProfile(db.Model):
             "graduation_year IS NULL OR "
             "(graduation_year >= 1900 AND graduation_year <= 2100)",
             name="ck_candidate_profile_graduation_year",
+        ),
+    )
+    
+    
+class RecruiterAccessRequest(db.Model):
+    __tablename__ = "recruiter_access_request"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+    )
+
+    company_name = db.Column(
+        db.String(150),
+        nullable=False,
+    )
+
+    company_website = db.Column(
+        db.String(500),
+        nullable=False,
+        default="",
+    )
+
+    reason = db.Column(
+        db.Text,
+        nullable=False,
+    )
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="pending",
+        server_default="pending",
+    )
+
+    submitted_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    reviewed_by_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True,
+    )
+
+    reviewed_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    review_note = db.Column(
+        db.Text,
+        nullable=False,
+        default="",
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            name="uq_recruiter_access_request_user_id",
+        ),
+        db.CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected')",
+            name="ck_recruiter_access_request_status",
+        ),
+        db.CheckConstraint(
+            "(status = 'pending' "
+            "AND reviewed_by_id IS NULL "
+            "AND reviewed_at IS NULL) "
+            "OR "
+            "(status IN ('approved', 'rejected') "
+            "AND reviewed_by_id IS NOT NULL "
+            "AND reviewed_at IS NOT NULL)",
+            name="ck_recruiter_access_request_review",
+        ),
+        db.Index(
+            "ix_recruiter_access_request_status_submitted",
+            "status",
+            "submitted_at",
         ),
     )
 
@@ -4732,6 +4820,7 @@ def candidate_dashboard():
             ("My Applications", "candidate_applications"),
             ("Analyze my resume", "home"),
             ("View my history", "history"),
+            ("Request recruiter access", "candidate_recruiter_access"),
         ],
     )
 
@@ -4758,7 +4847,7 @@ def recruiter_dashboard():
 
 @app.route("/admin/dashboard")
 @roles_required("admin")
-def admin_dashboard():
+def admin_dashboard():  
     return render_template(
         "role_dashboard.html",
         dashboard_title="Admin Dashboard",
@@ -4770,7 +4859,9 @@ def admin_dashboard():
             ("Administrators", User.query.filter_by(role="admin").count()),
             ("Total analyses", Analysis.query.count()),
         ],
-        actions=[],
+        actions=[
+            ("Review recruiter requests", "admin_recruiter_requests"),
+        ],
     )
 
 
@@ -5820,6 +5911,13 @@ def download_multiple_report():
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
 register_candidate_profile_routes(app, db, CandidateProfile)
+
+register_recruiter_access_routes(
+    app,
+    db,
+    User,
+    RecruiterAccessRequest,
+)
 register_application_history_routes(app, JobApplication)
 
 register_recruiter_application_routes(
