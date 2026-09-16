@@ -5,111 +5,335 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Applications | AI Resume Screener</title>
   <style>
-    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --background: #f4f6fb;
+      --surface: #ffffff;
+      --text: #182235;
+      --muted: #526176;
+      --primary: #5037d5;
+      --primary-hover: #4027b5;
+      --border: #dce2ec;
+      --focus: #087da3;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      background: #f4f6fb;
-      color: #182235;
+      background: var(--background);
+      color: var(--text);
       font-family: Arial, sans-serif;
       line-height: 1.6;
+      overflow-wrap: anywhere;
     }
+
+    a {
+      color: var(--primary);
+      text-underline-offset: 4px;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      z-index: 10;
+      padding: 12px 18px;
+      border-radius: 8px;
+      background: var(--text);
+      color: #ffffff;
+      transform: translateY(-200%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
     header {
-      background: white;
-      border-bottom: 1px solid #dce2ec;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
     }
-    nav, main {
+
+    .main-nav {
       max-width: 1120px;
-      margin: auto;
-      padding: 24px;
-    }
-    nav {
+      margin: 0 auto;
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
+      align-items: center;
       flex-wrap: wrap;
-      gap: 16px;
+      gap: 12px 20px;
     }
-    a { color: #5037d5; }
-    h1 { line-height: 1.2; }
-    .muted { color: #526176; }
-    .panel, .card {
-      background: white;
-      border: 1px solid #dce2ec;
-      border-radius: 14px;
-      padding: 24px;
-    }
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: 16px;
-      margin: 28px 0;
-    }
-    label { display: block; font-weight: bold; }
-    select {
-      padding: 12px;
-      margin-top: 6px;
-      border: 1px solid #aab6c8;
-      border-radius: 8px;
-      font: inherit;
-      max-width: 100%;
-    }
-    .button {
-      display: inline-block;
-      padding: 12px 20px;
-      border: 0;
-      border-radius: 8px;
-      background: #583de0;
-      color: white;
-      font: inherit;
-      font-weight: bold;
+
+    .brand {
+      min-width: 0;
+      font-size: 20px;
+      font-weight: 700;
       text-decoration: none;
-      cursor: pointer;
     }
-    .button:hover { background: #4228b9; }
-    :focus-visible {
-      outline: 3px solid #087da3;
-      outline-offset: 3px;
+
+    .dashboard-link,
+    .pagination a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      font-weight: 700;
+      text-decoration: none;
     }
+
+    .dashboard-link:hover,
+    .pagination a:hover {
+      background: #f0edff;
+      border-color: var(--primary);
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 32px auto 64px;
+      padding: 0 24px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 16px 0;
+      font-size: clamp(28px, 4vw, 38px);
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin: 16px 0;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .panel,
+    .card {
+      min-width: 0;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .panel {
+      margin-bottom: 24px;
+    }
+
+    .panel > :last-child {
+      margin-bottom: 0;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
       gap: 20px;
     }
-    .card { overflow-wrap: anywhere; }
+
     .badge {
       display: inline-block;
       padding: 5px 12px;
-      background: #eee9ff;
-      color: #5037d5;
-      border-radius: 20px;
+      border-radius: 999px;
+      background: #ece8ff;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 700;
     }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      min-height: 48px;
+      padding: 12px 20px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background: var(--primary-hover);
+    }
+
+    .button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .notice {
+      margin-bottom: 20px;
+      padding: 14px 18px;
+      border: 1px solid #b9e6c8;
+      border-radius: 10px;
+      background: #dcfce7;
+    }
+
+    .timestamp {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-form {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    select {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 48px;
+      padding: 12px;
+      border: 1px solid #aebbd0;
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .status-help {
+      margin: 12px 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      margin-bottom: 0;
+    }
+
+    .empty-state h2 {
+      margin-top: 0;
+    }
+
     .pagination {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 20px;
+      gap: 12px 20px;
       margin-top: 28px;
     }
-    @media (max-width: 700px) {
-      .grid { grid-template-columns: 1fr; }
+
+    .page-label {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 760px) {
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .main-nav {
+        padding: 12px 16px;
+      }
+
+      .brand {
+        font-size: 18px;
+      }
+
+      main {
+        margin: 20px auto 40px;
+        padding: 0 16px;
+      }
+
+      .panel,
+      .card {
+        padding: 20px;
+      }
+
+      h2 {
+        font-size: 22px;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .pagination {
+        gap: 12px;
+      }
+    }
+  
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 16px;
+      margin: 28px 0;
+    }
+    .filter-field { flex: 1 1 240px; min-width: 0; }
+    .filter-field select { margin: 0; }
+    .clear-filter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 12px 16px;
+    }
+    .empty-state { grid-column: 1 / -1; }
+    @media (max-width: 600px) {
+      .filters { flex-direction: column; align-items: stretch; }
+      .filter-field { flex: none; }
     }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header>
-    <nav aria-label="Main navigation">
-      <strong>AI Resume Screener</strong>
-      <a href="{{ url_for('candidate_dashboard') }}">My dashboard</a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="brand" href="{{ url_for('candidate_dashboard') }}">AI Resume Screener</a>
+      <a class="dashboard-link" href="{{ url_for('candidate_dashboard') }}">My dashboard</a>
     </nav>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <h1>My Applications</h1>
     <p class="muted">Review your submissions and their current status.</p>
 
     <form class="panel filters" method="get"
           action="{{ url_for('candidate_applications') }}">
-      <div>
+      <div class="filter-field">
         <label for="status">Application status</label>
         <select id="status" name="status">
           <option value="">All statuses</option>
@@ -123,19 +347,19 @@
       </div>
 
       <button class="button" type="submit">Filter</button>
-      <a href="{{ url_for('candidate_applications') }}">Clear filter</a>
+      <a class="clear-filter" href="{{ url_for('candidate_applications') }}">Clear filter</a>
     </form>
 
     <p>{{ pagination.total }} matching application(s)</p>
 
     <section class="grid" aria-label="Your applications">
       {% for submission in pagination.items %}
-        <article class="card">
+        <article class="card" aria-labelledby="application-{{ submission.id }}">
           <span class="badge">
             {{ statuses.get(submission.status, submission.status) }}
           </span>
 
-          <h2>{{ submission.job_title_snapshot }}</h2>
+          <h2 id="application-{{ submission.id }}">{{ submission.job_title_snapshot }}</h2>
           <p>Reference: #{{ submission.id }}</p>
           <p>Resume: {{ submission.resume_filename }}</p>
 
@@ -153,7 +377,7 @@
           </a>
         </article>
       {% else %}
-        <div class="panel">
+        <div class="panel empty-state">
           <h2>No matching applications</h2>
           {% if selected_status %}
             <p>Try another status or clear the filter.</p>

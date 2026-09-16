@@ -4,85 +4,341 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notifications | AI Resume Screener</title>
+
   <style>
-    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --background: #f4f6fb;
+      --surface: #ffffff;
+      --text: #182235;
+      --muted: #526176;
+      --primary: #5037d5;
+      --primary-hover: #4027b5;
+      --border: #dce2ec;
+      --focus: #087da3;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
-      margin: 0; background: #f4f6fb; color: #182235;
-      font-family: Arial, sans-serif; line-height: 1.6;
-    }
-    header { background: white; border-bottom: 1px solid #dce2ec; }
-    nav, main { max-width: 1000px; margin: auto; padding: 24px; }
-    nav {
-      display: flex; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px;
-    }
-    a { color: #5037d5; }
-    .panel {
-      background: white; border: 1px solid #dce2ec;
-      border-radius: 14px; padding: 24px; margin: 20px 0;
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
       overflow-wrap: anywhere;
     }
-    .unread { border-left: 5px solid #583de0; }
+
+    a {
+      color: var(--primary);
+      text-underline-offset: 4px;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      z-index: 10;
+      padding: 12px 18px;
+      border-radius: 8px;
+      background: var(--text);
+      color: #ffffff;
+      transform: translateY(-200%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .main-nav {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+    }
+
+    .brand {
+      min-width: 0;
+      font-size: 20px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .dashboard-link,
+    .pagination a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .dashboard-link:hover,
+    .pagination a:hover {
+      background: #f0edff;
+      border-color: var(--primary);
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 40px auto 64px;
+      padding: 0 24px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(28px, 5vw, 42px);
+      line-height: 1.2;
+    }
+
+    .summary {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .description {
+      margin: 0 0 28px;
+      color: var(--muted);
+    }
+
+    .panel {
+      min-width: 0;
+      margin: 0 0 20px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .panel.unread {
+      border-left: 5px solid var(--primary);
+    }
+
     .badge {
-      display: inline-block; background: #eee9ff; color: #5037d5;
-      padding: 4px 12px; border-radius: 20px;
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: #edf0f5;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
     }
-    .muted { color: #526176; }
-    .message { white-space: pre-wrap; }
+
+    .unread .badge {
+      background: #ece8ff;
+      color: var(--primary);
+    }
+
+    .panel h2 {
+      margin: 16px 0 12px;
+      font-size: clamp(20px, 3vw, 24px);
+      line-height: 1.3;
+    }
+
+    .message {
+      margin: 0 0 16px;
+      white-space: pre-wrap;
+    }
+
+    .timestamp {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .read-form {
+      margin-top: 20px;
+    }
+
     button {
-      padding: 12px 20px; border: 0; border-radius: 8px;
-      background: #583de0; color: white; font: inherit;
-      font-weight: bold; cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      min-height: 48px;
+      padding: 12px 20px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
     }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    .empty-state h2 {
+      margin-top: 0;
+    }
+
+    .empty-state p {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
     .pagination {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 20px;
+      margin-top: 28px;
     }
-    :focus-visible { outline: 3px solid #087da3; outline-offset: 3px; }
+
+    .page-label {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 600px) {
+      .main-nav {
+        padding: 12px 16px;
+      }
+
+      .brand {
+        font-size: 18px;
+      }
+
+      main {
+        margin: 28px auto 40px;
+        padding: 0 16px;
+      }
+
+      .description {
+        margin-bottom: 24px;
+      }
+
+      .panel {
+        padding: 20px;
+      }
+
+      .read-form button {
+        width: 100%;
+      }
+
+      .pagination {
+        gap: 12px;
+      }
+    }
   </style>
 </head>
+
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
   <header>
-    <nav aria-label="Main navigation">
-      <strong>AI Resume Screener</strong>
-      <a href="{{ url_for('dashboard') }}">My dashboard</a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        AI Resume Screener
+      </a>
+
+      <a class="dashboard-link" href="{{ url_for('dashboard') }}">
+        My dashboard
+      </a>
     </nav>
   </header>
-  <main>
+
+  <main id="main-content" tabindex="-1">
     <h1>Notifications</h1>
-    <p>{{ unread_count }} unread · {{ pagination.total }} total</p>
-    <p class="muted">Opening this page does not mark notifications as read.</p>
+    <p class="summary">
+      {{ unread_count }} unread · {{ pagination.total }} total
+    </p>
+    <p class="description">
+      Opening this page does not mark notifications as read.
+    </p>
 
     {% for item in pagination.items %}
-      <article class="panel{% if item.read_at is none %} unread{% endif %}">
-        <span class="badge">{{ "Unread" if item.read_at is none else "Read" }}</span>
-        <h2>{{ item.title }}</h2>
+      <article
+        class="panel{% if item.read_at is none %} unread{% endif %}"
+        aria-labelledby="notification-title-{{ item.id }}"
+      >
+        <span class="badge">
+          {{ "Unread" if item.read_at is none else "Read" }}
+        </span>
+
+        <h2 id="notification-title-{{ item.id }}">{{ item.title }}</h2>
         <p class="message">{{ item.message }}</p>
-        <p class="muted">{{ item.created_at.strftime('%d %b %Y, %H:%M') }} UTC</p>
+
+        <p class="timestamp">
+          {{ item.created_at.strftime('%d %b %Y, %H:%M') }} UTC
+        </p>
+
         {% if item.read_at is none %}
-          <form method="post" action="{{ url_for('mark_notification_read', notification_id=item.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="page" value="{{ pagination.page }}">
+          <form
+            class="read-form"
+            method="post"
+            action="{{ url_for('mark_notification_read', notification_id=item.id) }}"
+          >
+            <input
+              type="hidden"
+              name="csrf_token"
+              value="{{ csrf_token }}"
+            >
+            <input
+              type="hidden"
+              name="page"
+              value="{{ pagination.page }}"
+            >
             <button type="submit">Mark as read</button>
           </form>
         {% else %}
-          <p class="muted">Read: {{ item.read_at.strftime('%d %b %Y, %H:%M') }} UTC</p>
+          <p class="timestamp">
+            Read: {{ item.read_at.strftime('%d %b %Y, %H:%M') }} UTC
+          </p>
         {% endif %}
       </article>
     {% else %}
-      <section class="panel">
-        <h2>No notifications yet</h2>
-        <p>New application-status changes and recruiter-access decisions will appear here.</p>
+      <section class="panel empty-state" aria-labelledby="empty-heading">
+        <h2 id="empty-heading">No notifications yet</h2>
+        <p>
+          New application-status changes and recruiter-access decisions
+          will appear here.
+        </p>
       </section>
     {% endfor %}
 
     {% if pagination.pages > 1 %}
       <nav class="pagination" aria-label="Notification pages">
         {% if pagination.has_prev %}
-          <a href="{{ url_for('notifications', page=pagination.prev_num) }}">Previous</a>
+          <a href="{{ url_for('notifications', page=pagination.prev_num) }}">
+            Previous
+          </a>
         {% endif %}
-        <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+
+        <span class="page-label">
+          Page {{ pagination.page }} of {{ pagination.pages }}
+        </span>
+
         {% if pagination.has_next %}
-          <a href="{{ url_for('notifications', page=pagination.next_num) }}">Next</a>
+          <a href="{{ url_for('notifications', page=pagination.next_num) }}">
+            Next
+          </a>
         {% endif %}
       </nav>
     {% endif %}
