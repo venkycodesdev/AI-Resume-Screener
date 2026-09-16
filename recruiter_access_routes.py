@@ -21,6 +21,7 @@ def register_recruiter_access_routes(
     db,
     User,
     RecruiterAccessRequest,
+    Notification,
 ):
     def error_response(message, status):
         return (
@@ -327,6 +328,25 @@ def register_recruiter_access_routes(
                         409,
                     )
 
+            message = (
+                f"Your recruiter-access request #{request_id} "
+                f"for {submission.company_name} was {decision}."
+            )
+            if decision == "approved":
+                message += (
+                    " Open My dashboard to access your recruiter workspace."
+                )
+            else:
+                message += " Your candidate access remains available."
+            if note:
+                message += f"\nReview note: {note}"
+
+            db.session.add(Notification(
+                user_id=applicant_id,
+                kind="recruiter_access",
+                title=f"Recruiter access {decision}",
+                message=message,
+            ))
             db.session.commit()
         except Exception:
             db.session.rollback()

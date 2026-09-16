@@ -5,6 +5,7 @@ import zipfile
 from application_score_routes import register_application_score_routes
 from candidate_profile_routes import register_candidate_profile_routes
 from recruiter_access_routes import register_recruiter_access_routes
+from notification_routes import register_notification_routes
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -351,6 +352,32 @@ class RecruiterAccessRequest(db.Model):
             "status",
             "submitted_at",
         ),
+    )
+
+
+class Notification(db.Model):
+    __tablename__ = "notification"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False,
+    )
+    kind = db.Column(db.String(40), nullable=False)
+    title = db.Column(db.String(160), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime, nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "kind IN ('application_status', 'recruiter_access')",
+            name="ck_notification_kind",
+        ),
+        db.Index("ix_notification_user_created", "user_id", "created_at"),
+        db.Index("ix_notification_user_read", "user_id", "read_at"),
     )
 
 
@@ -4805,19 +4832,35 @@ def dashboard():
 @app.route("/candidate/dashboard")
 @roles_required("candidate")
 def candidate_dashboard():
-    report_count = Analysis.query.filter_by(
-        user_id=current_user.id
+    applications = JobApplication.query.filter_by(candidate_id=current_user.id)
+    unread_count = Notification.query.filter_by(
+        user_id=current_user.id, read_at=None,
     ).count()
-
     return render_template(
         "role_dashboard.html",
         dashboard_title="Candidate Dashboard",
-        description="Analyze your resume and review your progress.",
-        metrics=[("Your saved analyses", report_count)],
+        description="Track your applications and review your progress.",
+        metrics=[
+            (
+                "Your saved analyses",
+                Analysis.query.filter_by(user_id=current_user.id).count(),
+            ),
+            ("Your applications", applications.count()),
+            (
+                "Under review",
+                applications.filter_by(status="under_review").count(),
+            ),
+            (
+                "Shortlisted",
+                applications.filter_by(status="shortlisted").count(),
+            ),
+            ("Unread notifications", unread_count),
+        ],
         actions=[
             ("My Profile", "candidate_profile"),
             ("Browse Jobs", "candidate_jobs"),
             ("My Applications", "candidate_applications"),
+            ("Notifications", "notifications"),
             ("Analyze my resume", "home"),
             ("View my history", "history"),
             ("Request recruiter access", "candidate_recruiter_access"),
@@ -4828,17 +4871,36 @@ def candidate_dashboard():
 @app.route("/recruiter/dashboard")
 @roles_required("recruiter")
 def recruiter_dashboard():
-    report_count = Analysis.query.filter_by(
-        user_id=current_user.id
+    jobs = JobPosting.query.filter_by(recruiter_id=current_user.id)
+    applications = JobApplication.query.join(
+        JobPosting, JobApplication.job_id == JobPosting.id,
+    ).filter(JobPosting.recruiter_id == current_user.id)
+    unread_count = Notification.query.filter_by(
+        user_id=current_user.id, read_at=None,
     ).count()
-
     return render_template(
         "role_dashboard.html",
         dashboard_title="Recruiter Dashboard",
-        description="Screen resumes and review your saved results.",
-        metrics=[("Your saved analyses", report_count)],
+        description="Manage your jobs and review applicants.",
+        metrics=[
+            (
+                "Your saved analyses",
+                Analysis.query.filter_by(user_id=current_user.id).count(),
+            ),
+            ("Your jobs", jobs.count()),
+            ("Open jobs", jobs.filter_by(status="open").count()),
+            ("Applications received", applications.count()),
+            (
+                "Shortlisted applicants",
+                applications.filter(
+                    JobApplication.status == "shortlisted",
+                ).count(),
+            ),
+            ("Unread notifications", unread_count),
+        ],
         actions=[
             ("My Jobs", "recruiter_jobs"),
+            ("Notifications", "notifications"),
             ("Screen multiple resumes", "multiple_resume"),
             ("View my history", "history"),
         ],
@@ -4847,20 +4909,31 @@ def recruiter_dashboard():
 
 @app.route("/admin/dashboard")
 @roles_required("admin")
-def admin_dashboard():  
+def admin_dashboard():
+    unread_count = Notification.query.filter_by(
+        user_id=current_user.id, read_at=None,
+    ).count()
     return render_template(
         "role_dashboard.html",
         dashboard_title="Admin Dashboard",
-        description="View account and analysis totals across the platform.",
+        description="Review platform totals and recruiter-access requests.",
         metrics=[
             ("Total users", User.query.count()),
             ("Candidates", User.query.filter_by(role="candidate").count()),
             ("Recruiters", User.query.filter_by(role="recruiter").count()),
             ("Administrators", User.query.filter_by(role="admin").count()),
             ("Total analyses", Analysis.query.count()),
+            (
+                "Pending recruiter requests",
+                RecruiterAccessRequest.query.filter_by(
+                    status="pending",
+                ).count(),
+            ),
+            ("Unread notifications", unread_count),
         ],
         actions=[
             ("Review recruiter requests", "admin_recruiter_requests"),
+            ("Notifications", "notifications"),
         ],
     )
 
@@ -5911,12 +5984,14 @@ def download_multiple_report():
 register_job_routes(app, db, JobPosting)
 register_candidate_job_routes(app, JobPosting)
 register_candidate_profile_routes(app, db, CandidateProfile)
+register_notification_routes(app, db, Notification)
 
 register_recruiter_access_routes(
     app,
     db,
     User,
     RecruiterAccessRequest,
+    Notification,
 )
 register_application_history_routes(app, JobApplication)
 
@@ -5926,6 +6001,7 @@ register_recruiter_application_routes(
     JobApplication,
     User,
     db,
+    Notification,
 )
 
 register_application_routes(

@@ -10,7 +10,10 @@ ROLES = ("candidate", "recruiter", "admin")
 
 
 def make_account(role, email="dashboard@example.com"):
-    user = create_user(name="Dashboard User", email=email)
+    user = create_user(
+        name="Dashboard User",
+        email=email,
+    )
     user.role = role
     application.db.session.commit()
     return user
@@ -19,7 +22,10 @@ def make_account(role, email="dashboard@example.com"):
 def sign_in(client, email="dashboard@example.com"):
     return client.post(
         "/login",
-        data={"email": email, "password": "Password123"},
+        data={
+            "email": email,
+            "password": "Password123",
+        },
         follow_redirects=False,
     )
 
@@ -104,9 +110,27 @@ def test_dashboard_counts_only_own_analyses(client, role):
         response = client.get(f"/{role}/dashboard")
 
     assert response.status_code == 200
-    assert rendered[-1]["metrics"] == [
-        ("Your saved analyses", 1),
-    ]
+    assert rendered
+
+    metrics = dict(rendered[-1]["metrics"])
+
+    if role == "candidate":
+        assert metrics == {
+            "Your saved analyses": 1,
+            "Your applications": 0,
+            "Under review": 0,
+            "Shortlisted": 0,
+            "Unread notifications": 0,
+        }
+    else:
+        assert metrics == {
+            "Your saved analyses": 1,
+            "Your jobs": 0,
+            "Open jobs": 0,
+            "Applications received": 0,
+            "Shortlisted applicants": 0,
+            "Unread notifications": 0,
+        }
 
 
 def test_admin_dashboard_shows_platform_totals(client):
@@ -137,10 +161,14 @@ def test_admin_dashboard_shows_platform_totals(client):
         response = client.get("/admin/dashboard")
 
     assert response.status_code == 200
+    assert rendered
+
     assert dict(rendered[-1]["metrics"]) == {
         "Total users": 3,
         "Candidates": 1,
         "Recruiters": 1,
         "Administrators": 1,
         "Total analyses": 2,
+        "Pending recruiter requests": 0,
+        "Unread notifications": 0,
     }
